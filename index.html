@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="light dark"><meta name="theme-color" content="#14171f"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><style>body{margin:0}</style>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="light dark"><meta name="theme-color" content="#14171f"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Taller Pro"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}:root{padding-top:env(safe-area-inset-top,0px)}</style>
 <title>Taller Pro</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Space+Grotesk:wght@500;700&display=swap">
@@ -117,6 +117,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 .bell{box-shadow:0 8px 18px -10px rgba(16,20,30,.45);transition:transform .12s}.bell:hover{transform:translateY(-1px)}
 .toast{border-radius:12px;box-shadow:0 14px 30px -12px rgba(0,0,0,.5)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.tkp{background:#fff;color:#000;font:12px/1.35 "Courier New",monospace;margin:0 auto;box-shadow:0 12px 28px -14px rgba(0,0,0,.45);max-width:100%}
+.tkp .t{padding:3mm}.tkp .c{text-align:center}.tkp .b{font-weight:700}.tkp .big{font-size:14px}.tkp .r{display:flex;justify-content:space-between;gap:6px}.tkp hr{border:0;border-top:1px dashed #000;margin:6px 0}
 @media (max-width:900px){
 .app{grid-template-columns:1fr}
 .side{position:fixed;bottom:0;left:0;right:0;top:auto;height:auto;flex-direction:row;padding:6px max(6px,env(safe-area-inset-left,0px)) max(6px,env(safe-area-inset-bottom,0px));z-index:40;justify-content:space-around;gap:2px}
@@ -136,6 +138,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 <button class="nav" data-v="inv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>Inventario</button>
 <button class="nav" data-v="fac"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h8"/></svg>Facturas</button>
 <button class="nav" data-v="aj"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>Ajustes</button>
+<button class="btn p s hide-m" id="installBtn" data-act="install" hidden style="margin:0 6px 8px">Instalar app</button>
 <div class="sp"></div>
 <div class="note hide-m" id="syncNote" style="padding:0 10px"></div>
 </nav>
@@ -304,9 +307,13 @@ function invBody(s){
   <div style="margin-left:auto;max-width:260px;margin-top:12px"><div class="tot"><span>Subtotal</span><span>${money(s.subtotal)}</span></div>${s.discount?`<div class="tot"><span>Descuento</span><span>− ${money(s.discount)}</span></div>`:""}${s.tax?`<div class="tot"><span>IVA ${s.taxRate}%</span><span>${money(s.tax)}</span></div>`:""}<div class="tot big"><span>Total</span><span>${money(s.total)}</span></div></div>
   <p style="margin-top:18px;color:#666;font-size:12px">${esc(c.footer)}</p>`;
 }
-function showInvoice(id){
-  const s=S.sales[id];if(!s)return;
-  openModal(`<div class="inv" id="invbox">${invBody(s)}</div><div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-act="close">Cerrar</button>${s.status!=="anulada"?`<button class="btn d" data-act="void" data-id="${id}">Anular</button>`:""}<button class="btn" data-act="copyinv" data-id="${id}">Copiar para WhatsApp</button><button class="btn" data-act="dlinv" data-id="${id}">Imprimir factura</button><button class="btn p" data-act="dltk" data-id="${id}">Imprimir ticket</button></div><p class="note" style="text-align:right;margin:8px 0 0">Se descarga el documento; ábrelo y se imprime con tu impresora.</p>`);
+function showInvoice(id,fmt){
+  const s=S.sales[id];if(!s)return;ui.fmt=fmt||ui.fmt||"ticket";
+  const tk=ui.fmt==="ticket",w=cfg().paper==="58"?"48mm":"72mm";
+  openModal(`<div class="row" style="justify-content:space-between;margin-bottom:12px"><h2>Vista previa · ${esc(s.num)}</h2><div class="tabs" style="margin:0"><button class="tab" data-act="fmt" data-id="${id}" data-f="ticket" aria-pressed="${tk}">Ticket</button><button class="tab" data-act="fmt" data-id="${id}" data-f="factura" aria-pressed="${!tk}">Factura</button></div></div>
+  <div style="background:var(--surface2);border-radius:12px;padding:16px;max-height:58vh;overflow:auto">${tk?`<div class="tkp" style="width:${w}">${ticketBody(s)}</div>`:`<div class="inv">${invBody(s)}</div>`}</div>
+  <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-act="close">Cerrar</button>${s.status!=="anulada"?`<button class="btn d" data-act="void" data-id="${id}">Anular</button>`:""}<button class="btn" data-act="copyinv" data-id="${id}">WhatsApp</button><button class="btn" data-act="dlk" data-id="${id}">Descargar</button><button class="btn p" data-act="prt" data-id="${id}">Imprimir ${tk?"ticket":"factura"}</button></div>
+  <p class="note" style="text-align:right;margin:8px 0 0">${CAN_PRINT?"Se abre el diálogo de impresión de tu dispositivo: elige tu impresora.":"Aquí se descarga el documento para imprimir. Instalada la app, imprime directo."}</p>`);
 }
 function invText(s){const c=cfg();return `*${c.name}*\nFactura ${s.num} · ${fdate(s.ts)}\nCliente: ${s.customer.name}\n\n`+s.items.map(l=>`${l.qty} x ${l.name} — ${money(l.qty*l.price)}`).join("\n")+(s.discount?`\nDescuento: -${money(s.discount)}`:"")+(s.tax?`\nIVA: ${money(s.tax)}`:"")+`\n*TOTAL: ${money(s.total)}*\nPago: ${s.method}\n\n${c.footer}`}
 async function download(name,data,msg){
@@ -314,11 +321,6 @@ async function download(name,data,msg){
   const ext=name.split(".").pop(),types={html:"text/html",csv:"text/csv",json:"application/json"};
   const u=URL.createObjectURL(new Blob([data],{type:(types[ext]||"text/plain")+";charset=utf-8"})),l=document.createElement("a");
   l.href=u;l.download=name;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);toast(msg||"Archivo listo");
-}
-function dlInvoice(id){
-  const s=S.sales[id];
-  const html=`<!doctype html><html lang="es"><meta charset="utf-8"><title>Factura ${esc(s.num)}</title><style>body{font:14px system-ui,sans-serif;max-width:760px;margin:30px auto;padding:0 16px;color:#14171f}h2{margin:0 0 4px}.tot{display:flex;justify-content:space-between;padding:3px 0}.tot.big{font-weight:700;font-size:20px;border-top:2px solid #14171f;margin-top:6px;padding-top:8px}@media print{.np{display:none}}</style><body><p class="np"><button onclick="print()" style="padding:8px 14px">Imprimir</button></p>${invBody(s)}</body></html>`;
-  download("Factura-"+s.num+".html",html,"Abre el archivo descargado para imprimir");
 }
 function csv(rows){return "﻿"+rows.map(r=>r.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\n")}
 async function voidSale(id){
@@ -335,7 +337,7 @@ function vFac(){
   return `<div class="top"><div><h1>Facturas</h1><p>Registro de todo lo vendido.</p></div><button class="btn" data-act="csvsales">Exportar CSV</button></div>
   <div class="grid kpis"><div class="kpi"><span>Facturas emitidas</span><b>${ok.length}</b></div><div class="kpi"><span>Total facturado</span><b>${money(ok.reduce((s,x)=>s+x.total,0))}</b></div></div>
   <div class="card"><input id="fq" placeholder="Buscar por número, cliente o teléfono" value="${esc(ui.fq||"")}" style="max-width:340px;margin-bottom:12px"><div class="tw"><table><thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Pago</th><th class="n">Total</th><th>Estado</th><th></th></tr></thead><tbody>
-  ${ss.map(s=>`<tr><td class="mono">${esc(s.num)}</td><td>${fdate(s.ts)}</td><td>${esc(s.customer.name)}</td><td>${esc(s.method)}</td><td class="n"><b>${money(s.total)}</b></td><td><span class="pill ${s.status==="anulada"?"bad":"good"}">${s.status==="anulada"?"Anulada":"Emitida"}</span></td><td class="n"><button class="btn s" data-act="dltk" data-id="${s.id}">Imprimir</button> <button class="btn s" data-act="seeinv" data-id="${s.id}">Ver</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">Aún no hay facturas.</td></tr>`}</tbody></table></div></div>`;
+  ${ss.map(s=>`<tr><td class="mono">${esc(s.num)}</td><td>${fdate(s.ts)}</td><td>${esc(s.customer.name)}</td><td>${esc(s.method)}</td><td class="n"><b>${money(s.total)}</b></td><td><span class="pill ${s.status==="anulada"?"bad":"good"}">${s.status==="anulada"?"Anulada":"Emitida"}</span></td><td class="n"><button class="btn s" data-act="seeinv" data-id="${s.id}">Imprimir</button> <button class="btn s" data-act="seeinv" data-id="${s.id}">Ver</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">Aún no hay facturas.</td></tr>`}</tbody></table></div></div>`;
 }
 
 function readLogo(file){return new Promise((res,rej)=>{const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{const k=Math.min(1,360/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);res(c.toDataURL("image/jpeg",.85))};img.onerror=()=>rej(new Error("img"));img.src=url})}
@@ -348,11 +350,22 @@ function ticketBody(s){
   ${L("Subtotal",money(s.subtotal).replace("C$ ","C$"))}${s.discount?L("Descuento","-"+money(s.discount).replace("C$ ","C$")):""}${s.tax?L("IVA "+s.taxRate+"%",money(s.tax).replace("C$ ","C$")):""}
   <div class="r b big"><span>TOTAL</span><span>${money(s.total).replace("C$ ","C$")}</span></div><div>Pago: ${esc(s.method)}</div><hr><div class="c">${esc(c.footer)}</div><div class="c b">¡Gracias por su compra!</div></div>`;
 }
-function dlTicket(id){
-  const s=S.sales[id],w=cfg().paper==="58"?"58":"80",bw=w==="58"?"48mm":"72mm";
-  const html=`<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ticket ${esc(s.num)}</title><style>@page{size:${w}mm auto;margin:0}body{margin:0;background:#e8e8e8;font:12px/1.35 "Courier New",monospace;color:#000}.t{width:${bw};margin:12px auto;background:#fff;padding:3mm}.c{text-align:center}.b{font-weight:700}.big{font-size:14px}.r{display:flex;justify-content:space-between;gap:6px}hr{border:0;border-top:1px dashed #000;margin:6px 0}.np{text-align:center;padding:10px}@media print{body{background:#fff}.np{display:none}.t{margin:0;width:${bw};padding:1mm 0}}</style><body><div class="np"><button onclick="print()" style="padding:10px 18px;font-size:15px">Imprimir ticket</button></div>${ticketBody(s)}<script>addEventListener("load",()=>setTimeout(()=>{try{print()}catch(e){}},500))<\/script></body></html>`;
-  download("Ticket-"+s.num+".html",html,"Abre el archivo descargado para imprimir el ticket");
+const CAN_PRINT=!window.claude;
+const TKCSS=w=>`@page{size:${w}mm auto;margin:0}body{margin:0;background:#e8e8e8;font:12px/1.35 "Courier New",monospace;color:#000}.t{width:${w==="58"?"48mm":"72mm"};margin:12px auto;background:#fff;padding:3mm}.c{text-align:center}.b{font-weight:700}.big{font-size:14px}.r{display:flex;justify-content:space-between;gap:6px}hr{border:0;border-top:1px dashed #000;margin:6px 0}.np{text-align:center;padding:10px}@media print{body{background:#fff}.np{display:none}.t{margin:0;padding:1mm 0}}`;
+function docTicket(s,withUI){
+  const w=cfg().paper==="58"?"58":"80";
+  return `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ticket ${esc(s.num)}</title><style>${TKCSS(w)}</style><body>${withUI?`<div class="np"><button onclick="print()" style="padding:10px 18px;font-size:15px">Imprimir ticket</button></div>`:""}${ticketBody(s)}${withUI?`<script>addEventListener("load",()=>setTimeout(()=>{try{print()}catch(e){}},500))<\/script>`:""}</body></html>`;
 }
+function docInvoice(s,withUI){
+  return `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Factura ${esc(s.num)}</title><style>@page{size:letter;margin:12mm}body{font:14px system-ui,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;color:#14171f}h2{margin:0 0 4px}.tot{display:flex;justify-content:space-between;padding:3px 0}.tot.big{font-weight:700;font-size:20px;border-top:2px solid #14171f;margin-top:6px;padding-top:8px}.np{text-align:center;margin-bottom:12px}@media print{.np{display:none}body{margin:0;padding:0}}</style><body>${withUI?`<p class="np"><button onclick="print()" style="padding:10px 18px;font-size:15px">Imprimir factura</button></p>`:""}${invBody(s)}</body></html>`;
+}
+function printHTML(html){
+  const f=document.createElement("iframe");f.setAttribute("aria-hidden","true");f.style.cssText="position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+  document.body.appendChild(f);const d=f.contentWindow.document;d.open();d.write(html);d.close();
+  setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(e){toast("No se pudo abrir la impresión. Usa Descargar.")}setTimeout(()=>f.remove(),60000)},500);
+}
+function printDoc(kind,id){const s=S.sales[id];if(!s)return;if(CAN_PRINT)printHTML(kind==="ticket"?docTicket(s,false):docInvoice(s,false));else dlDoc(kind,id)}
+function dlDoc(kind,id){const s=S.sales[id];if(!s)return;const tk=kind==="ticket";download((tk?"Ticket-":"Factura-")+s.num+".html",tk?docTicket(s,true):docInvoice(s,true),"Abre el archivo descargado para imprimir")}
 </script>
 <script>
 const RST=["Recibido","En diagnóstico","En reparación","Listo","Entregado"];
@@ -440,7 +453,7 @@ function vAj(){
   <div><label for="apw">Ancho del papel del ticket</label><select id="apw"><option value="80" ${c.paper==="80"?"selected":""}>80 mm (estándar)</option><option value="58" ${c.paper==="58"?"selected":""}>58 mm (pequeña)</option></select></div></div>
   <div class="f"><div><label for="at">IVA (%). Pon 0 si no lo cobras</label><input id="at" type="number" min="0" step="0.01" value="${c.tax}"></div><div><label for="al">Aviso de stock bajo por defecto</label><input id="al" type="number" min="0" value="${c.lowDefault}"></div><div><label for="anx">Próxima factura número</label><input id="anx" type="number" min="1" value="${c.next}"></div></div>
   <div><label for="af2">Mensaje al pie de la factura</label><textarea id="af2" rows="2">${esc(c.footer)}</textarea></div>
-  <div class="row" style="justify-content:space-between"><button type="button" class="btn" data-act="backup">Descargar respaldo (JSON)</button><button class="btn p">Guardar ajustes</button></div></form></div>`;
+  <div class="row" style="justify-content:space-between"><button type="button" class="btn" data-act="backup">Descargar respaldo (JSON)</button><button class="btn p">Guardar ajustes</button></div></form></div>${CAN_PRINT&&!matchMedia("(display-mode: standalone)").matches?`<div class="card" style="margin-top:14px"><h2>Instalar la app</h2><div class="f"><div><b>Android</b><div class="note">Chrome → menú ⋮ → Instalar app.</div></div><div><b>iPhone</b><div class="note">Abre en Safari → Compartir → Añadir a pantalla de inicio.</div></div><div><b>PC</b><div class="note">Chrome o Edge → icono de instalar en la barra de direcciones.</div></div></div><div class="row" style="margin-top:12px"><button class="btn p" data-act="install">Instalar ahora</button></div></div>`:""}`;
 }
 function dismissed(){try{return new Set(JSON.parse(localStorage.getItem("tp_dis")||"[]"))}catch(e){return new Set()}}
 function saveDis(s){try{localStorage.setItem("tp_dis",JSON.stringify([...s].slice(-300)))}catch(e){}}
@@ -501,7 +514,10 @@ document.addEventListener("click",async e=>{
     case"checkout":checkout();break;
     case"seeinv":showInvoice(id);break;
     case"copyinv":try{await navigator.clipboard.writeText(invText(S.sales[id]));toast("Factura copiada")}catch(x){toast("No se pudo copiar")}break;
-    case"dlinv":dlInvoice(id);break;
+    case"fmt":showInvoice(id,b.dataset.f);break;
+    case"prt":printDoc(ui.fmt,id);break;
+    case"dlk":dlDoc(ui.fmt,id);break;
+    case"install":if(window.deferredInstall){window.deferredInstall.prompt();await window.deferredInstall.userChoice;window.deferredInstall=null;$("#installBtn").hidden=true}else toast("Usa el menú del navegador: Instalar app o Añadir a pantalla de inicio");break;
     case"void":if(b.dataset.sure)voidSale(id);else{b.dataset.sure=1;b.textContent="Confirmar anulación"}break;
     case"newr":repForm();break;
     case"editr":repForm(id);break;
@@ -514,8 +530,7 @@ document.addEventListener("click",async e=>{
     case"aldis":{const d=dismissed();d.add(id);saveDis(d);alertsModal();updateBell();break}
     case"alall":{const d=dismissed();alerts().forEach(a=>d.add(a.key));saveDis(d);alertsModal();updateBell();break}
     case"algo":{const a=alerts().find(x=>x.key===id);closeModal();if(a&&a.rep){go("rep");repForm(a.rep)}else go("inv");break}
-    case"dltk":dlTicket(id);break;
-    case"rmlogo":await putSettings({logo:""});render(true);toast("Logo quitado");break;
+        case"rmlogo":await putSettings({logo:""});render(true);toast("Logo quitado");break;
     case"backup":download("respaldo-taller-"+today()+".json",JSON.stringify(S,null,1));break;
   }
 });
@@ -529,7 +544,10 @@ document.addEventListener("change",async e=>{
   if(e.target.id!=="alg"||!e.target.files[0])return;
   try{const logo=await readLogo(e.target.files[0]);await putSettings({logo});const p=$("#logoPrev");if(p){p.src=logo;p.style.display=""}toast("Logo guardado")}catch(x){toast("No se pudo leer la imagen")}
 });
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();window.deferredInstall=e;$("#installBtn").hidden=false});
+addEventListener("appinstalled",()=>{window.deferredInstall=null;$("#installBtn").hidden=true;toast("App instalada")});
 (async()=>{render(true);await initStore();render(true);setTimeout(()=>{ui.seen=new Set(alerts().map(a=>a.key));ui.armed=true},1800)})();
 </script>
 
+<script>if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 </body></html>
