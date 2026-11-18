@@ -162,7 +162,8 @@ const today=()=>new Date().toISOString().slice(0,10);
 const fdate=iso=>new Date(iso).toLocaleString("es-NI",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
 const list=c=>Object.entries(S[c]).map(([id,v])=>({...v,id}));
 function toast(t){const e=$("#toast");e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,2600)}
-function saveLocal(){try{localStorage.setItem("tallerpro",JSON.stringify(S))}catch(e){}}
+function updNet(){const n=$("#syncNote");if(!n)return;n.textContent=mode==="db"?(navigator.onLine?"Datos guardados en la nube.":"Sin conexión con la nube."):(navigator.onLine?"Funciona sin internet. Datos en este dispositivo.":"Sin internet · todo se guarda en este dispositivo.")}
+function saveLocal(){try{localStorage.setItem("tallerpro",JSON.stringify(S))}catch(e){toast("No hay espacio para guardar. Descarga un respaldo en Ajustes.")}}
 function loadLocal(){try{const d=JSON.parse(localStorage.getItem("tallerpro")||"null");if(d)COLS.concat("settings").forEach(c=>{if(d[c])S[c]=d[c]})}catch(e){}}
 async function put(col,id,data){
   S[col][id]=data;
@@ -179,9 +180,9 @@ async function putSettings(patch){
 async function initStore(){
   loadLocal();
   try{DB=window.claude?await window.claude.use("db"):null}catch(e){DB=null}
-  if(!DB){$("#syncNote").textContent="Datos guardados solo en este navegador.";return}
+  if(!DB){updNet();try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}return}
   mode="db";S.products={};S.sales={};S.repairs={};S.moves={};S.settings={};
-  $("#syncNote").textContent="Datos guardados en la nube.";
+  updNet();
   const t=setTimeout(()=>$("#syncNote").textContent="Sin conexión con la base de datos.",10000);
   COLS.forEach(c=>DB.collection(c).onSnapshot(sn=>{clearTimeout(t);S[c]={};sn.docs.forEach(d=>S[c][d.id]=d.data());render()},e=>toast("Error de datos: "+e.code)));
   DB.doc("config/main").onSnapshot(d=>{S.settings=d.exists?d.data():{};render()},()=>{});
@@ -189,6 +190,8 @@ async function initStore(){
 function openModal(html){$("#sheet").innerHTML=html;$("#modal").hidden=false}
 function closeModal(){$("#modal").hidden=true;$("#sheet").innerHTML=""}
 $("#modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
+addEventListener("offline",()=>{updNet();toast("Sin internet: sigues trabajando, todo se guarda")});
+addEventListener("online",()=>{updNet();toast("Conexión recuperada")});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
 </script>
 <script>
@@ -453,7 +456,7 @@ function vAj(){
   <div><label for="apw">Ancho del papel del ticket</label><select id="apw"><option value="80" ${c.paper==="80"?"selected":""}>80 mm (estándar)</option><option value="58" ${c.paper==="58"?"selected":""}>58 mm (pequeña)</option></select></div></div>
   <div class="f"><div><label for="at">IVA (%). Pon 0 si no lo cobras</label><input id="at" type="number" min="0" step="0.01" value="${c.tax}"></div><div><label for="al">Aviso de stock bajo por defecto</label><input id="al" type="number" min="0" value="${c.lowDefault}"></div><div><label for="anx">Próxima factura número</label><input id="anx" type="number" min="1" value="${c.next}"></div></div>
   <div><label for="af2">Mensaje al pie de la factura</label><textarea id="af2" rows="2">${esc(c.footer)}</textarea></div>
-  <div class="row" style="justify-content:space-between"><button type="button" class="btn" data-act="backup">Descargar respaldo (JSON)</button><button class="btn p">Guardar ajustes</button></div></form></div>${CAN_PRINT&&!matchMedia("(display-mode: standalone)").matches?`<div class="card" style="margin-top:14px"><h2>Instalar la app</h2><div class="f"><div><b>Android</b><div class="note">Chrome → menú ⋮ → Instalar app.</div></div><div><b>iPhone</b><div class="note">Abre en Safari → Compartir → Añadir a pantalla de inicio.</div></div><div><b>PC</b><div class="note">Chrome o Edge → icono de instalar en la barra de direcciones.</div></div></div><div class="row" style="margin-top:12px"><button class="btn p" data-act="install">Instalar ahora</button></div></div>`:""}`;
+  <div class="row" style="justify-content:space-between"><button type="button" class="btn" data-act="backup">Descargar respaldo (JSON)</button><button class="btn p">Guardar ajustes</button></div></form></div>${mode!=="db"?`<div class="card" style="margin-top:14px"><h2>Respaldo y otro dispositivo</h2><p class="note" style="margin:0 0 10px">Tus datos viven en este dispositivo y funcionan sin internet. Descarga un respaldo seguido, y restáuralo aquí si cambias de teléfono o computadora.</p><label for="rst">Restaurar desde un respaldo (.json)</label><input id="rst" type="file" accept=".json,application/json">${CAN_PRINT?`<div class="row" style="margin-top:14px;justify-content:space-between"><span class="note">Versión ${typeof APP_VERSION!=="undefined"?APP_VERSION:""}. Se actualiza sola al abrir con internet.</span><button type="button" class="btn s" data-act="upd">Buscar actualización</button></div>`:""}</div>`:""}${CAN_PRINT&&!matchMedia("(display-mode: standalone)").matches?`<div class="card" style="margin-top:14px"><h2>Instalar la app</h2><div class="f"><div><b>Android</b><div class="note">Chrome → menú ⋮ → Instalar app.</div></div><div><b>iPhone</b><div class="note">Abre en Safari → Compartir → Añadir a pantalla de inicio.</div></div><div><b>PC</b><div class="note">Chrome o Edge → icono de instalar en la barra de direcciones.</div></div></div><div class="row" style="margin-top:12px"><button class="btn p" data-act="install">Instalar ahora</button></div></div>`:""}`;
 }
 function dismissed(){try{return new Set(JSON.parse(localStorage.getItem("tp_dis")||"[]"))}catch(e){return new Set()}}
 function saveDis(s){try{localStorage.setItem("tp_dis",JSON.stringify([...s].slice(-300)))}catch(e){}}
@@ -465,6 +468,7 @@ function alerts(){
     else if(r.status!=="Entregado"&&now-new Date(r.ts)>5*864e5)out.push({key:"a:"+r.id,lvl:"warn",title:"Más de 5 días en taller: "+r.device,text:r.customer.name+" · orden "+r.num+" · "+r.status,rep:r.id});
     if(r.status==="Entregado"&&!r.saleId)out.push({key:"f:"+r.id,lvl:"warn",title:"Entregado sin facturar: "+r.device,text:"Orden "+r.num+" de "+r.customer.name,rep:r.id});
   });
+  try{if(mode!=="db"&&(list("sales").length||list("products").length)){const lb=+(localStorage.getItem("tp_backup")||0);if(now-lb>7*864e5)out.push({key:"b:"+Math.floor(now/(7*864e5)),lvl:"warn",title:"Haz un respaldo de tus datos",text:lb?"El último respaldo tiene más de 7 días.":"Aún no has descargado ningún respaldo.",go:"aj"})}}catch(e){}
   return out.filter(a=>!dis.has(a.key));
 }
 function updateBell(){
@@ -514,6 +518,8 @@ document.addEventListener("click",async e=>{
     case"checkout":checkout();break;
     case"seeinv":showInvoice(id);break;
     case"copyinv":try{await navigator.clipboard.writeText(invText(S.sales[id]));toast("Factura copiada")}catch(x){toast("No se pudo copiar")}break;
+    case"dorestore":if(ui.pending&&mode!=="db"){COLS.forEach(c=>S[c]=ui.pending[c]||{});S.settings=ui.pending.settings||{};saveLocal();ui.pending=null;closeModal();render(true);toast("Respaldo restaurado")}break;
+    case"upd":{const r=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();if(!r){toast("Las actualizaciones solo funcionan en la app instalada");break}toast("Buscando actualización…");try{await r.update()}catch(x){toast("Sin conexión para actualizar");break}setTimeout(()=>{if(!r.installing&&!r.waiting)toast("Ya tienes la última versión")},2500);break}
     case"fmt":showInvoice(id,b.dataset.f);break;
     case"prt":printDoc(ui.fmt,id);break;
     case"dlk":dlDoc(ui.fmt,id);break;
@@ -529,9 +535,9 @@ document.addEventListener("click",async e=>{
     case"bell":alertsModal();break;
     case"aldis":{const d=dismissed();d.add(id);saveDis(d);alertsModal();updateBell();break}
     case"alall":{const d=dismissed();alerts().forEach(a=>d.add(a.key));saveDis(d);alertsModal();updateBell();break}
-    case"algo":{const a=alerts().find(x=>x.key===id);closeModal();if(a&&a.rep){go("rep");repForm(a.rep)}else go("inv");break}
+    case"algo":{const a=alerts().find(x=>x.key===id);closeModal();if(a&&a.rep){go("rep");repForm(a.rep)}else go(a&&a.go||"inv");break}
         case"rmlogo":await putSettings({logo:""});render(true);toast("Logo quitado");break;
-    case"backup":download("respaldo-taller-"+today()+".json",JSON.stringify(S,null,1));break;
+    case"backup":try{localStorage.setItem("tp_backup",Date.now())}catch(x){}download("respaldo-taller-"+today()+".json",JSON.stringify(S,null,1));break;
   }
 });
 document.addEventListener("input",e=>{
@@ -541,6 +547,11 @@ document.addEventListener("input",e=>{
   else if(["cn","cp","cm"].includes(id))syncCust();
 });
 document.addEventListener("change",async e=>{
+  if(e.target.id==="rst"&&e.target.files[0]){
+    try{const d=JSON.parse(await e.target.files[0].text());if(!d||typeof d.products!=="object"||typeof d.sales!=="object")throw 0;ui.pending=d;
+      openModal(`<h2>Restaurar respaldo</h2><p>Se reemplazarán los datos de este dispositivo por el respaldo: <b>${Object.keys(d.products).length}</b> productos, <b>${Object.keys(d.sales).length}</b> facturas y <b>${Object.keys(d.repairs||{}).length}</b> reparaciones.</p><p class="note">Los datos actuales se perderán. Descarga un respaldo antes si no estás seguro.</p><div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-act="close">Cancelar</button><button class="btn p" data-act="dorestore">Restaurar</button></div>`)}
+    catch(x){toast("Ese archivo no es un respaldo válido")}
+    e.target.value="";return}
   if(e.target.id!=="alg"||!e.target.files[0])return;
   try{const logo=await readLogo(e.target.files[0]);await putSettings({logo});const p=$("#logoPrev");if(p){p.src=logo;p.style.display=""}toast("Logo guardado")}catch(x){toast("No se pudo leer la imagen")}
 });
@@ -549,5 +560,17 @@ addEventListener("appinstalled",()=>{window.deferredInstall=null;$("#installBtn"
 (async()=>{render(true);await initStore();render(true);setTimeout(()=>{ui.seen=new Set(alerts().map(a=>a.key));ui.armed=true},1800)})();
 </script>
 
-<script>if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
+<script>
+const APP_VERSION="2.1 · 18 nov 2026";
+if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){
+  let had=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{
+    if(!had){had=true;return}
+    if(window.__rl)return;
+    if(!ui.cart.length&&$("#modal").hidden){window.__rl=1;location.reload()}
+    else toast("Nueva versión lista. Se aplicará al reabrir la app.");
+  });
+  addEventListener("load",()=>navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>{r.update();setInterval(()=>r.update(),1800000)}).catch(()=>{}));
+}
+</script>
 </body></html>
