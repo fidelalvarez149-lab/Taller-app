@@ -119,6 +119,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 .tkp{background:#fff;color:#000;font:12px/1.35 "Courier New",monospace;margin:0 auto;box-shadow:0 12px 28px -14px rgba(0,0,0,.45);max-width:100%}
 .tkp .t{padding:3mm}.tkp .c{text-align:center}.tkp .b{font-weight:700}.tkp .big{font-size:14px}.tkp .r{display:flex;justify-content:space-between;gap:6px}.tkp hr{border:0;border-top:1px dashed #000;margin:6px 0}
+.gate{position:fixed;inset:0;z-index:80;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px}
+.gate .sheet{box-shadow:0 30px 70px -30px rgba(0,0,0,.45)}
 @media (max-width:900px){
 .app{grid-template-columns:1fr}
 .side{position:fixed;bottom:0;left:0;right:0;top:auto;height:auto;flex-direction:row;padding:6px max(6px,env(safe-area-inset-left,0px)) max(6px,env(safe-area-inset-bottom,0px));z-index:40;justify-content:space-around;gap:2px}
@@ -128,6 +130,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 .two,.pos{grid-template-columns:minmax(0,1fr)}
 .top h1{font-size:23px}
 }
+@media (max-width:900px){.side{justify-content:flex-start;overflow-x:auto}.nav{flex:0 0 auto;min-width:74px;width:auto}}
+td.n,th.n{white-space:nowrap}
 </style>
 <div class="app">
 <nav class="side" aria-label="Secciones">
@@ -135,11 +139,15 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 <button class="nav" data-v="panel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Panel</button>
 <button class="nav" data-v="venta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 12.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 7H6"/></svg>Vender</button>
 <button class="nav" data-v="rep"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>Reparaciones</button>
+<button class="nav" data-v="cli"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c2 .7 3.2 2.4 3.5 5.2"/></svg>Clientes</button>
 <button class="nav" data-v="inv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>Inventario</button>
 <button class="nav" data-v="fac"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h8"/></svg>Facturas</button>
+<button class="nav" data-v="reportes" data-admin hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Reportes</button>
+<button class="nav" data-v="equipo" data-admin hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 6v6c0 4.5 3.2 7.8 8 9 4.8-1.2 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>Equipo</button>
 <button class="nav" data-v="aj"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>Ajustes</button>
 <button class="btn p s hide-m" id="installBtn" data-act="install" hidden style="margin:0 6px 8px">Instalar app</button>
 <div class="sp"></div>
+<div class="hide-m" id="meNote" style="padding:0 10px;font-size:12px;font-weight:600;color:#fff"></div>
 <div class="note hide-m" id="syncNote" style="padding:0 10px"></div>
 </nav>
 <button class="bell" id="bell" data-act="bell" aria-label="Notificaciones"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><b id="bellN" hidden>0</b></button>
@@ -147,10 +155,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 </div>
 <div class="modal" id="modal" hidden><div class="sheet" id="sheet"></div></div>
 <div class="toast" id="toast" hidden></div>
+<div class="gate" id="gate" hidden></div>
 <script>
 "use strict";
-const COLS=["products","sales","repairs","moves"];
-const S={products:{},sales:{},repairs:{},moves:{},settings:{}};
+const COLS=["products","sales","repairs","moves","clientes"];
+const S={products:{},sales:{},repairs:{},moves:{},clientes:{},usuarios:{},settings:{}};
 const DEF={name:"Mi Taller",phone:"",address:"",ruc:"",tax:0,next:1,nextRep:1,footer:"Gracias por su preferencia. Garantía de reparación: 30 días.",lowDefault:3,paper:"80",logo:"",enc:"cp858",prLogo:true,autoprint:false,baud:9600,prmethod:"direct"};
 let DB=null,FS=false,mode="local",view="panel",ui={};
 const $=s=>document.querySelector(s);
@@ -158,7 +167,7 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const cfg=()=>({...DEF,...S.settings});
 const money=n=>"C$ "+(Number(n)||0).toLocaleString("es-NI",{minimumFractionDigits:2,maximumFractionDigits:2});
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-const today=()=>new Date().toISOString().slice(0,10);
+const today=()=>new Date().toLocaleDateString("sv-SE");
 const fdate=iso=>new Date(iso).toLocaleString("es-NI",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
 const list=c=>Object.entries(S[c]).map(([id,v])=>({...v,id}));
 function toast(t){const e=$("#toast");e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,2600)}
@@ -187,7 +196,7 @@ async function initStore(){
   try{DB=window.claude?await window.claude.use("db"):null}catch(e){DB=null}
   if(!DB&&cloudCfg()){await initCloud();return}
   if(!DB){updNet();try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}return}
-  mode="db";S.products={};S.sales={};S.repairs={};S.moves={};S.settings={};
+  mode="db";S.products={};S.sales={};S.repairs={};S.moves={};S.clientes={};S.settings={};
   updNet();
   const t=setTimeout(()=>$("#syncNote").textContent="Sin conexión con la base de datos.",10000);
   COLS.forEach(c=>DB.collection(c).onSnapshot(sn=>{clearTimeout(t);S[c]={};sn.docs.forEach(d=>S[c][d.id]=d.data());render()},e=>toast("Error de datos: "+e.code)));
@@ -205,7 +214,7 @@ async function adjustStock(pid,delta,type,ref){
   const p=S.products[pid];if(!p)return;
   const after=Math.max(0,(Number(p.stock)||0)+delta);
   if(FS){S.products[pid]={...p,stock:after};DB.collection("products").doc(pid).update({stock:firebase.firestore.FieldValue.increment(after-(Number(p.stock)||0))}).catch(()=>{});saveLocalSoon()}else await put("products",pid,{...p,stock:after});
-  await put("moves",uid(),{ts:new Date().toISOString(),pid,name:p.name,type,qty:delta,after,ref:ref||""});
+  await put("moves",uid(),{ts:new Date().toISOString(),pid,name:p.name,type,qty:delta,after,ref:ref||"",by:myName()});
 }
 const stState=p=>p.stock<=0?["bad","Agotado"]:p.stock<=(Number(p.min)||0)?["warn","Stock bajo"]:["good","Disponible"];
 function vInv(){
@@ -219,19 +228,19 @@ function vInv(){
   const units=all.reduce((s,p)=>s+p.stock,0);
   const rows=ps.map(p=>{const[c,l]=stState(p);const pct=Math.min(100,p.stock/Math.max(1,(Number(p.min)||1)*4)*100);
     return `<tr><td><b>${esc(p.name)}</b><div class="note mono">${esc(p.sku||"")} ${p.category?"· "+esc(p.category):""}</div></td>
-    <td class="n">${money(p.cost)}</td><td class="n">${money(p.price)}</td>
+    ${isAdmin()?`<td class="n">${money(p.cost)}</td>`:""}<td class="n">${money(p.price)}</td>
     <td class="n"><b>${p.stock}</b></td><td><div class="bar"><i style="width:${pct}%"></i></div></td>
     <td><span class="pill ${c}">${l}</span></td>
-    <td class="n" style="white-space:nowrap"><button class="btn s" data-act="stock" data-id="${p.id}">+ Entrada</button> <button class="btn s" data-act="hist" data-id="${p.id}">Historial</button> <button class="btn s" data-act="editp" data-id="${p.id}">Editar</button></td></tr>`}).join("");
+    <td class="n" style="white-space:nowrap">${isAdmin()?`<button class="btn s" data-act="stock" data-id="${p.id}">+ Entrada</button> `:""}<button class="btn s" data-act="hist" data-id="${p.id}">Historial</button>${isAdmin()?` <button class="btn s" data-act="editp" data-id="${p.id}">Editar</button>`:""}</td></tr>`}).join("");
   return `<div class="top"><div><h1>Inventario</h1><p>Existencias exactas, actualizadas con cada venta o reparación.</p></div>
-  <div class="row"><button class="btn" data-act="csvinv">Exportar CSV</button><button class="btn p" data-act="newp">+ Nuevo producto</button></div></div>
+  ${isAdmin()?`<div class="row"><button class="btn" data-act="csvinv">Exportar CSV</button><button class="btn p" data-act="newp">+ Nuevo producto</button></div>`:""}</div>
   <div class="grid kpis"><div class="kpi"><span>Productos</span><b>${all.length}</b><em>${units} unidades en total</em></div>
-  <div class="kpi"><span>Valor a costo</span><b>${money(val)}</b><em>Lo que tienes invertido</em></div>
+  ${isAdmin()?`<div class="kpi"><span>Valor a costo</span><b>${money(val)}</b><em>Lo que tienes invertido</em></div>
   <div class="kpi"><span>Valor a la venta</span><b>${money(retail)}</b><em>Ganancia potencial ${money(retail-val)}</em></div>
-  <div class="kpi"><span>Por reponer</span><b>${all.filter(p=>p.stock<=(Number(p.min)||0)).length}</b><em>Agotados o con stock bajo</em></div></div>
+  `:""}<div class="kpi"><span>Por reponer</span><b>${all.filter(p=>p.stock<=(Number(p.min)||0)).length}</b><em>Agotados o con stock bajo</em></div></div>
   <div class="card"><div class="row" style="margin-bottom:12px"><input id="iq" placeholder="Buscar por nombre, código o categoría" value="${esc(ui.iq||"")}" style="max-width:340px">
   <div class="tabs" style="margin:0">${[["all","Todos"],["low","Stock bajo"],["out","Agotados"]].map(([k,l])=>`<button class="tab" data-act="ifilter" data-id="${k}" aria-pressed="${f===k}">${l}</button>`).join("")}</div></div>
-  <div class="tw"><table><thead><tr><th>Producto</th><th class="n">Costo</th><th class="n">Precio</th><th class="n">Existencia</th><th></th><th>Estado</th><th></th></tr></thead>
+  <div class="tw"><table><thead><tr><th>Producto</th>${isAdmin()?`<th class="n">Costo</th>`:""}<th class="n">Precio</th><th class="n">Existencia</th><th></th><th>Estado</th><th></th></tr></thead>
   <tbody>${rows||`<tr><td colspan="7" class="empty">${all.length?"Sin resultados.":"Aún no hay productos. Agrega el primero con “Nuevo producto”."}</td></tr>`}</tbody></table></div></div>`;
 }
 function prodForm(p){
@@ -286,7 +295,7 @@ function vVenta(){
   <h2 style="margin-top:18px">Servicio o mano de obra</h2>
   <div class="row"><input id="svn" placeholder="Ej. Cambio de pantalla Samsung A12" style="flex:2;min-width:180px"><input id="svp" type="number" min="0" step="0.01" placeholder="Precio C$" style="flex:1;min-width:100px"><button class="btn" data-act="addsv">Agregar</button></div></div>
   <div class="card"><h2>Factura en curso</h2>${lines||`<div class="empty">Toca un producto para agregarlo.</div>`}
-  <div class="f" style="margin-top:14px"><div><label for="cn">Cliente</label><input id="cn" value="${esc(ui.cust.name)}" placeholder="Consumidor final"></div><div><label for="cp">Teléfono</label><input id="cp" value="${esc(ui.cust.phone)}" inputmode="tel"></div>
+  <div class="f" style="margin-top:14px"><div><label for="cn">Cliente</label><input id="cn" list="clist" autocomplete="off" value="${esc(ui.cust.name)}" placeholder="Consumidor final">${clientList()}</div><div><label for="cp">Teléfono</label><input id="cp" value="${esc(ui.cust.phone)}" inputmode="tel"></div>
   <div><label for="cm">Forma de pago</label><select id="cm">${["Efectivo","Transferencia","Tarjeta","Crédito"].map(m=>`<option ${m===ui.cust.method?"selected":""}>${m}</option>`).join("")}</select></div>
   <div><label for="cd">Descuento (C$)</label><input id="cd" type="number" min="0" step="0.01" value="${ui.cust.disc||""}"></div></div>
   <div style="margin-top:12px" id="totbox">${totBox()}</div>
@@ -296,8 +305,8 @@ function syncCust(){["cn:name","cp:phone","cm:method","cd:disc"].forEach(x=>{con
 async function checkout(){
   syncCust();if(!ui.cart.length)return;
   for(const l of ui.cart){if(l.pid&&(S.products[l.pid]?.stock||0)<l.qty){toast("No hay suficiente existencia de "+l.name);return}}
-  const c=cfg(),t=cartTotals(),num=nextNum(mySerie(),"sales"),id=uid();
-  const sale={num,ts:new Date().toISOString(),customer:{name:ui.cust.name.trim()||"Consumidor final",phone:ui.cust.phone.trim()},method:ui.cust.method,items:ui.cart.map(l=>({...l})),subtotal:t.sub,discount:t.disc,taxRate:+c.tax||0,tax:t.tax,total:t.total,status:"emitida",device:myDevice()};
+  const c=cfg(),t=cartTotals(),num=nextNum(mySerie(),"sales"),id=uid(),cid=await ensureClient(ui.cust.name,ui.cust.phone);
+  const sale={num,ts:new Date().toISOString(),customer:{name:ui.cust.name.trim()||"Consumidor final",phone:ui.cust.phone.trim()},method:ui.cust.method,items:ui.cart.map(l=>({...l})),subtotal:t.sub,discount:t.disc,taxRate:+c.tax||0,tax:t.tax,total:t.total,status:"emitida",device:myDevice(),by:byMe(),cid};
   await put("sales",id,sale);
   for(const l of sale.items){if(l.pid)await adjustStock(l.pid,-l.qty,"venta","Factura "+num)}
   ui.cart=[];ui.cust={name:"",phone:"",method:"Efectivo",disc:0,note:""};
@@ -320,7 +329,7 @@ function showInvoice(id,fmt){
   const tk=ui.fmt==="ticket",w=cfg().paper==="58"?"48mm":"72mm";
   openModal(`<div class="row" style="justify-content:space-between;margin-bottom:12px"><h2>Vista previa · ${esc(s.num)}</h2><div class="tabs" style="margin:0"><button class="tab" data-act="fmt" data-id="${id}" data-f="ticket" aria-pressed="${tk}">Ticket</button><button class="tab" data-act="fmt" data-id="${id}" data-f="factura" aria-pressed="${!tk}">Factura</button></div></div>
   <div style="background:var(--surface2);border-radius:12px;padding:16px;max-height:58vh;overflow:auto">${tk?`<div class="tkp" style="width:${w}">${ticketBody(s)}</div>`:`<div class="inv">${invBody(s)}</div>`}</div>
-  <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-act="close">Cerrar</button>${s.status!=="anulada"?`<button class="btn d" data-act="void" data-id="${id}">Anular</button>`:""}<button class="btn" data-act="copyinv" data-id="${id}">WhatsApp</button><button class="btn" data-act="dlk" data-id="${id}">Descargar</button>${CAN_PRINT&&tk?`<button class="btn" data-act="prt" data-id="${id}">Imprimir (diálogo)</button><button class="btn p" data-act="prdirect" data-id="${id}">Imprimir directo</button>`:`<button class="btn p" data-act="prt" data-id="${id}">Imprimir ${tk?"ticket":"factura"}</button>`}</div>
+  <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-act="close">Cerrar</button>${s.status!=="anulada"&&isAdmin()?`<button class="btn d" data-act="void" data-id="${id}">Anular</button>`:""}<button class="btn" data-act="copyinv" data-id="${id}">WhatsApp</button><button class="btn" data-act="dlk" data-id="${id}">Descargar</button>${CAN_PRINT&&tk?`<button class="btn" data-act="prt" data-id="${id}">Imprimir (diálogo)</button><button class="btn p" data-act="prdirect" data-id="${id}">Imprimir directo</button>`:`<button class="btn p" data-act="prt" data-id="${id}">Imprimir ${tk?"ticket":"factura"}</button>`}</div>
   <p class="note" style="text-align:right;margin:8px 0 0">${CAN_PRINT?"Se abre el diálogo de impresión de tu dispositivo: elige tu impresora.":"Aquí se descarga el documento para imprimir. Instalada la app, imprime directo."}</p>`);
 }
 function invText(s){const c=cfg();return `*${c.name}*\nFactura ${s.num} · ${fdate(s.ts)}\nCliente: ${s.customer.name}\n\n`+s.items.map(l=>`${l.qty} x ${l.name} — ${money(l.qty*l.price)}`).join("\n")+(s.discount?`\nDescuento: -${money(s.discount)}`:"")+(s.tax?`\nIVA: ${money(s.tax)}`:"")+`\n*TOTAL: ${money(s.total)}*\nPago: ${s.method}\n\n${c.footer}`}
@@ -345,7 +354,7 @@ function vFac(){
   return `<div class="top"><div><h1>Facturas</h1><p>Registro de todo lo vendido.</p></div><button class="btn" data-act="csvsales">Exportar CSV</button></div>
   <div class="grid kpis"><div class="kpi"><span>Facturas emitidas</span><b>${ok.length}</b></div><div class="kpi"><span>Total facturado</span><b>${money(ok.reduce((s,x)=>s+x.total,0))}</b></div></div>
   <div class="card"><input id="fq" placeholder="Buscar por número, cliente o teléfono" value="${esc(ui.fq||"")}" style="max-width:340px;margin-bottom:12px"><div class="tw"><table><thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Pago</th><th class="n">Total</th><th>Estado</th><th></th></tr></thead><tbody>
-  ${ss.map(s=>`<tr><td class="mono">${esc(s.num)}</td><td>${fdate(s.ts)}</td><td>${esc(s.customer.name)}${s.device?`<div class="note">${esc(s.device)}</div>`:""}</td><td>${esc(s.method)}</td><td class="n"><b>${money(s.total)}</b></td><td><span class="pill ${s.status==="anulada"?"bad":"good"}">${s.status==="anulada"?"Anulada":"Emitida"}</span></td><td class="n"><button class="btn s" data-act="seeinv" data-id="${s.id}">Imprimir</button> <button class="btn s" data-act="seeinv" data-id="${s.id}">Ver</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">Aún no hay facturas.</td></tr>`}</tbody></table></div></div>`;
+  ${ss.map(s=>`<tr><td class="mono">${esc(s.num)}</td><td>${fdate(s.ts)}</td><td>${esc(s.customer.name)}${(s.by&&s.by.name)||s.device?`<div class="note">${esc((s.by&&s.by.name)||s.device)}</div>`:""}</td><td>${esc(s.method)}</td><td class="n"><b>${money(s.total)}</b></td><td><span class="pill ${s.status==="anulada"?"bad":"good"}">${s.status==="anulada"?"Anulada":"Emitida"}</span></td><td class="n"><button class="btn s" data-act="seeinv" data-id="${s.id}">Imprimir</button> <button class="btn s" data-act="seeinv" data-id="${s.id}">Ver</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">Aún no hay facturas.</td></tr>`}</tbody></table></div></div>`;
 }
 
 function readLogo(file){return new Promise((res,rej)=>{const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{const k=Math.min(1,360/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);res(c.toDataURL("image/jpeg",.85))};img.onerror=()=>rej(new Error("img"));img.src=url})}
@@ -393,7 +402,7 @@ function repForm(id){
   const r=id?S.repairs[id]:{customer:{},parts:[],status:"Recibido"};
   const avail=list("products").filter(p=>p.stock>0).sort((a,b)=>a.name.localeCompare(b.name));
   openModal(`<h2>${id?"Orden "+esc(r.num):"Recibir equipo"}</h2><form id="rf" class="grid" style="margin-top:14px">
-  <div class="f"><div><label for="rn">Cliente</label><input id="rn" required value="${esc(r.customer.name||"")}"></div><div><label for="rp">Teléfono</label><input id="rp" inputmode="tel" value="${esc(r.customer.phone||"")}"></div>
+  <div class="f"><div><label for="rn">Cliente</label><input id="rn" list="clist" autocomplete="off" required value="${esc(r.customer.name||"")}">${clientList()}</div><div><label for="rp">Teléfono</label><input id="rp" inputmode="tel" value="${esc(r.customer.phone||"")}"></div>
   <div><label for="rd">Equipo (marca y modelo)</label><input id="rd" required value="${esc(r.device||"")}"></div><div><label for="ri">IMEI / serie</label><input id="ri" value="${esc(r.imei||"")}"></div></div>
   <div><label for="ra">Falla reportada</label><textarea id="ra" rows="2" required>${esc(r.issue||"")}</textarea></div>
   <div class="f"><div><label for="rl">Mano de obra (C$)</label><input id="rl" type="number" min="0" step="0.01" value="${r.labor??""}"></div><div><label for="rdp">Anticipo (C$)</label><input id="rdp" type="number" min="0" step="0.01" value="${r.deposit??""}"></div>
@@ -405,7 +414,7 @@ function repForm(id){
   <div class="row"><button type="button" class="btn" data-act="close">Cerrar</button><button class="btn p">Guardar</button></div></div></form>`);
   $("#rf").onsubmit=async e=>{e.preventDefault();syncRep();
     const c=cfg(),rid=id||uid(),base=id?S.repairs[id]:{num:nextNum(repPrefix(),"repairs"),ts:new Date().toISOString(),parts:[]};
-    await put("repairs",rid,{...base,...ui.rdraft});closeModal();toast("Orden guardada");};
+    const cid=await ensureClient(ui.rdraft.customer.name,ui.rdraft.customer.phone);await put("repairs",rid,{...base,...ui.rdraft,cid,by:base.by||byMe()});closeModal();toast("Orden guardada");};
 }
 function syncRep(){ui.rdraft={customer:{name:$("#rn").value.trim(),phone:$("#rp").value.trim()},device:$("#rd").value.trim(),imei:$("#ri").value.trim(),issue:$("#ra").value.trim(),labor:+$("#rl").value||0,deposit:+$("#rdp").value||0,status:$("#rs").value}}
 async function addPart(id){
@@ -426,15 +435,179 @@ async function billRepair(id){
   const items=[...(r.labor?[{name:"Mano de obra: "+r.device,qty:1,price:r.labor,cost:0}]:[]),...(r.parts||[]).map(p=>({name:p.name,qty:p.qty,price:p.price,cost:p.cost}))];
   if(!items.length){toast("Agrega mano de obra o repuestos");return}
   const sub=items.reduce((s,l)=>s+l.qty*l.price,0),tax=sub*(+c.tax||0)/100,sid=uid(),num=nextNum(mySerie(),"sales");
-  await put("sales",sid,{num,ts:new Date().toISOString(),customer:{...r.customer},method:"Efectivo",items,subtotal:sub,discount:0,taxRate:+c.tax||0,tax,total:sub+tax,status:"emitida",device:myDevice(),repairNum:r.num});
+  await put("sales",sid,{num,ts:new Date().toISOString(),customer:{...r.customer},method:"Efectivo",items,subtotal:sub,discount:0,taxRate:+c.tax||0,tax,total:sub+tax,status:"emitida",device:myDevice(),by:byMe(),cid:r.cid||"",repairNum:r.num});
   await put("repairs",id,{...r,saleId:sid,status:r.status==="Listo"?"Entregado":r.status});closeModal();toast("Factura generada");showInvoice(sid);
+}
+</script>
+<script>
+/* Roles: administrador y empleado. Sin nube, el dispositivo es administrador. Con nube, el rol viene de la cuenta. */
+let ME={uid:"",nombre:"Administrador",rol:"admin",activo:true},ROLE="admin",_started=false;
+const isAdmin=()=>ROLE==="admin";
+const ADMIN_VIEWS=new Set(["reportes","equipo"]);
+const myName=()=>(ME&&ME.nombre)||myDevice();
+const byMe=()=>({uid:ME.uid||"",name:myName()});
+const localDay=iso=>new Date(iso).toLocaleDateString("sv-SE");
+const authMsg=e=>({"auth/invalid-credential":"Correo o contraseña incorrectos.","auth/wrong-password":"Correo o contraseña incorrectos.","auth/user-not-found":"Ese correo no existe en Firebase.","auth/network-request-failed":"Sin internet para iniciar sesión.","auth/invalid-api-key":"La configuración de Firebase no es válida.","auth/too-many-requests":"Demasiados intentos. Espera unos minutos."}[e.code]||e.message||"No se pudo conectar");
+function gate(kind){
+  const g=$("#gate");if(!kind){g.hidden=true;g.innerHTML="";return}
+  const cc=cloudCfg()||{};
+  const T={
+    loading:`<p class="note" style="margin-top:10px">Conectando con la nube…</p>`,
+    login:`<p class="note">Inicia sesión para entrar.</p><div class="grid" style="margin-top:14px"><div><label for="g_mail">Correo</label><input id="g_mail" type="email" autocomplete="username" value="${esc(cc.email||"")}"></div><div><label for="g_pass">Contraseña</label><input id="g_pass" type="password" autocomplete="current-password"></div><button class="btn p" data-act="gologin">Entrar</button><button class="btn s" data-act="clouddis2">Este dispositivo no es de este negocio</button></div>`,
+    claim:`<p class="note">Este negocio todavía no tiene administrador. La cuenta con la que entraste será la administradora: podrá crear empleados, ver ganancias y administrar todo.</p><div class="grid" style="margin-top:14px"><div><label for="g_name">Tu nombre</label><input id="g_name" autocomplete="name"></div><button class="btn p" data-act="goclaim">Crear administrador</button><button class="btn s" data-act="gosignout">Cerrar sesión</button></div>`,
+    denied:`<p class="note">Tu cuenta no tiene acceso a este negocio. Pídele al administrador que te agregue como empleado.</p><div class="grid" style="margin-top:14px"><button class="btn" data-act="gosignout">Cerrar sesión</button></div>`,
+    disabled:`<p class="note">Tu acceso fue desactivado por el administrador.</p><div class="grid" style="margin-top:14px"><button class="btn" data-act="gosignout">Cerrar sesión</button></div>`,
+    offline:`<p class="note">No se pudo conectar y este dispositivo aún no tiene datos de acceso guardados. Conéctate a internet una vez para entrar.</p><div class="grid" style="margin-top:14px"><button class="btn p" data-act="goretry">Reintentar</button></div>`
+  };
+  g.innerHTML=`<div class="sheet" style="max-width:420px;margin:0"><h2>${esc(cfg().name)}</h2>${T[kind]||""}</div>`;g.hidden=false;
+  const p=$("#g_pass");if(p)p.addEventListener("keydown",e=>{if(e.key==="Enter")goLogin()});
+}
+function useCachedRole(uid){
+  try{const r=JSON.parse(localStorage.getItem("tp_role")||"null");if(r&&r.activo&&(!uid||r.uid===uid)){applyRole(r,{uid:r.uid});return true}}catch(e){}
+  return false;
+}
+function applyRole(u,user){
+  const r={uid:user.uid,nombre:u.nombre||"",email:u.email||"",rol:u.rol==="admin"?"admin":"empleado",activo:true};
+  if(_started&&r.rol!==ROLE){location.reload();return}
+  ME=r;ROLE=r.rol;try{localStorage.setItem("tp_role",JSON.stringify(r))}catch(e){}
+  if(!_started){_started=true;startSync()}
+  gate(null);render(true);
+}
+function startSync(){
+  const first=col=>{if(ui.seen)alerts().forEach(a=>ui.seen.add(a.key));ui["fs_"+col]=1};
+  COLS.forEach(col=>DB.collection(col).onSnapshot(sn=>{
+    if(sn.metadata.fromCache&&sn.empty&&Object.keys(S[col]).length)return;
+    S[col]={};sn.docs.forEach(d=>S[col][d.id]=d.data());
+    if(!sn.metadata.fromCache&&!ui["fs_"+col])first(col);
+    saveLocalSoon();render();
+  },e=>toast("Error de sincronización: "+(e.code||e.message))));
+  DB.doc("config/main").onSnapshot(d=>{S.settings=d.exists?d.data():{};saveLocalSoon();render()},()=>{});
+  if(isAdmin())DB.collection("usuarios").onSnapshot(sn=>{S.usuarios={};sn.docs.forEach(d=>S.usuarios[d.id]=d.data());render()},()=>{});
+  CS={state:"ok",msg:""};updNet();prUI();
+}
+async function goLogin(){
+  const c=cloudCfg(),mail=$("#g_mail").value.trim();
+  try{await loadSdk();if(!firebase.apps.length)firebase.initializeApp(c.config);await firebase.auth().signInWithEmailAndPassword(mail,$("#g_pass").value);localStorage.setItem(CK,JSON.stringify({...c,email:mail}));location.reload()}
+  catch(e){toast(authMsg(e))}
+}
+async function goClaim(){
+  const nm=$("#g_name").value.trim();if(!nm){toast("Escribe tu nombre");return}
+  const u=firebase.auth().currentUser,b=firebase.firestore().batch(),ts=new Date().toISOString();
+  b.set(DB.doc("meta/owner"),{uid:u.uid,ts});b.set(DB.doc("usuarios/"+u.uid),{nombre:nm,email:u.email,rol:"admin",activo:true,ts});
+  try{await b.commit();location.reload()}catch(e){toast("No se pudo crear el administrador: "+(e.code||e.message))}
+}
+async function cloudSignOut(){
+  try{if(window.firebase&&firebase.apps.length)await firebase.auth().signOut()}catch(e){}
+  try{localStorage.removeItem("tp_role")}catch(e){}
+  location.reload();
+}
+/* Clientes */
+const normPh=s=>String(s||"").replace(/\D/g,"");
+function findClient(name,phone){const n=String(name||"").trim().toLowerCase(),p=normPh(phone);return list("clientes").find(c=>(p&&normPh(c.phone)===p)||(n&&String(c.name).trim().toLowerCase()===n))}
+async function ensureClient(name,phone){
+  name=String(name||"").trim();if(!name||/^consumidor final$/i.test(name))return"";
+  const f=findClient(name,phone);
+  if(f){if(phone&&!f.phone){const{id,...rest}=f;await put("clientes",id,{...rest,phone})}return f.id}
+  const id=uid();await put("clientes",id,{name,phone:phone||"",email:"",address:"",notes:"",ts:new Date().toISOString(),by:myName()});return id;
+}
+function clientSales(c){return list("sales").filter(s=>s.status!=="anulada"&&(s.cid===c.id||(normPh(c.phone)&&normPh(s.customer.phone)===normPh(c.phone))||String(s.customer.name).trim().toLowerCase()===String(c.name).trim().toLowerCase()))}
+function clientRepairs(c){return list("repairs").filter(r=>(normPh(c.phone)&&normPh(r.customer.phone)===normPh(c.phone))||String(r.customer.name).trim().toLowerCase()===String(c.name).trim().toLowerCase())}
+const clientList=()=>`<datalist id="clist">${list("clientes").map(c=>`<option value="${esc(c.name)}">${esc(c.phone||"")}</option>`).join("")}</datalist>`;
+</script>
+<script>
+function vCli(){
+  const q=(ui.cq||"").toLowerCase(),adm=isAdmin();
+  const cs=list("clientes").filter(c=>!q||(c.name+" "+(c.phone||"")+" "+(c.email||"")).toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name));
+  return `<div class="top"><div><h1>Clientes</h1><p>${list("clientes").length} registrados. Se guardan solos al vender o recibir un equipo.</p></div><button class="btn p" data-act="newc">+ Nuevo cliente</button></div>
+  <div class="card"><input id="cq" placeholder="Buscar por nombre, teléfono o correo" value="${esc(ui.cq||"")}" style="max-width:340px;margin-bottom:12px"><div class="tw"><table><thead><tr><th>Cliente</th><th>Teléfono</th><th class="n">Compras</th>${adm?`<th class="n">Total gastado</th>`:""}<th>Última visita</th><th></th></tr></thead><tbody>
+  ${cs.map(c=>{const ss=clientSales(c),last=ss.concat(clientRepairs(c)).map(x=>x.ts).sort().pop();return `<tr><td><b>${esc(c.name)}</b>${c.notes?`<div class="note">${esc(c.notes)}</div>`:""}</td><td class="mono">${esc(c.phone||"")}</td><td class="n">${ss.length}</td>${adm?`<td class="n">${money(ss.reduce((s,x)=>s+x.total,0))}</td>`:""}<td>${last?fdate(last):"—"}</td><td class="n" style="white-space:nowrap"><button class="btn s" data-act="seec" data-id="${c.id}">Historial</button> <button class="btn s" data-act="editc" data-id="${c.id}">Editar</button></td></tr>`}).join("")||`<tr><td colspan="6" class="empty">${list("clientes").length?"Sin resultados.":"Aún no hay clientes."}</td></tr>`}</tbody></table></div></div>`;
+}
+function cliForm(id){
+  const c=id?S.clientes[id]:{};
+  openModal(`<h2>${id?"Editar cliente":"Nuevo cliente"}</h2><form id="cf" class="grid" style="margin-top:14px"><div class="f"><div><label for="cfn">Nombre</label><input id="cfn" required value="${esc(c.name||"")}"></div><div><label for="cfp">Teléfono</label><input id="cfp" inputmode="tel" value="${esc(c.phone||"")}"></div><div><label for="cfe">Correo (opcional)</label><input id="cfe" type="email" value="${esc(c.email||"")}"></div></div>
+  <div><label for="cfa">Dirección (opcional)</label><input id="cfa" value="${esc(c.address||"")}"></div><div><label for="cfo">Notas</label><textarea id="cfo" rows="2">${esc(c.notes||"")}</textarea></div>
+  <div class="row" style="justify-content:space-between"><div>${id&&isAdmin()?`<button type="button" class="btn d" data-act="delc" data-id="${id}">Eliminar</button>`:""}</div><div class="row"><button type="button" class="btn" data-act="close">Cancelar</button><button class="btn p">Guardar</button></div></div></form>`);
+  $("#cf").onsubmit=async e=>{e.preventDefault();await put("clientes",id||uid(),{...(id?c:{ts:new Date().toISOString(),by:myName()}),name:$("#cfn").value.trim(),phone:$("#cfp").value.trim(),email:$("#cfe").value.trim(),address:$("#cfa").value.trim(),notes:$("#cfo").value.trim()});closeModal();toast("Cliente guardado")};
+}
+function cliHist(id){
+  const c=S.clientes[id]||{name:""};c.id=id;const ss=clientSales(c).sort((a,b)=>b.ts.localeCompare(a.ts)),rs=clientRepairs(c).sort((a,b)=>b.ts.localeCompare(a.ts));
+  openModal(`<h2>${esc(c.name)}</h2><p class="note">${esc(c.phone||"")} ${c.address?"· "+esc(c.address):""}</p>
+  <h3 style="margin:14px 0 6px;font-size:14px">Facturas (${ss.length})</h3><div class="tw"><table><tbody>${ss.map(s=>`<tr><td class="mono">${esc(s.num)}</td><td>${fdate(s.ts)}</td><td class="n">${money(s.total)}</td><td class="n"><button class="btn s" data-act="seeinv" data-id="${s.id}">Ver</button></td></tr>`).join("")||`<tr><td class="empty">Sin compras.</td></tr>`}</tbody></table></div>
+  <h3 style="margin:14px 0 6px;font-size:14px">Reparaciones (${rs.length})</h3><div class="tw"><table><tbody>${rs.map(r=>`<tr><td class="mono">${esc(r.num)}</td><td>${esc(r.device)}<div class="note">${esc(r.issue)}</div></td><td><span class="pill ${rCls(r.status)}">${r.status}</span></td></tr>`).join("")||`<tr><td class="empty">Sin reparaciones.</td></tr>`}</tbody></table></div>
+  <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn p" data-act="close">Cerrar</button></div>`);
+}
+/* Reportes (solo administrador) */
+function repRange(){
+  const p=ui.rp||"mes",now=new Date(),d=n=>new Date(now.getFullYear(),now.getMonth(),now.getDate()-n),ymd=x=>x.toLocaleDateString("sv-SE");
+  if(p==="hoy")return[ymd(now),ymd(now)];if(p==="7d")return[ymd(d(6)),ymd(now)];
+  if(p==="mes")return[ymd(new Date(now.getFullYear(),now.getMonth(),1)),ymd(now)];
+  if(p==="ant")return[ymd(new Date(now.getFullYear(),now.getMonth()-1,1)),ymd(new Date(now.getFullYear(),now.getMonth(),0))];
+  if(p==="todo")return["0000-01-01","9999-12-31"];
+  return[ui.rfrom||ymd(d(29)),ui.rto||ymd(now)];
+}
+const saleProfit=s=>s.items.reduce((b,l)=>b+(l.price-(l.cost||0))*l.qty,0)-(s.discount||0);
+function repoData(){
+  const[a,b]=repRange(),all=list("sales").filter(s=>{const x=localDay(s.ts);return x>=a&&x<=b}),ok=all.filter(s=>s.status!=="anulada");
+  const tot=ok.reduce((s,x)=>s+x.total,0),gan=ok.reduce((s,x)=>s+saleProfit(x),0);
+  const grp=(keyf)=>{const m={};ok.forEach(s=>{const k=keyf(s)||"—";(m[k]=m[k]||{n:0,t:0,g:0});m[k].n++;m[k].t+=s.total;m[k].g+=saleProfit(s)});return Object.entries(m).sort((x,y)=>y[1].t-x[1].t)};
+  const prod={};ok.forEach(s=>s.items.forEach(l=>{const k=l.name;(prod[k]=prod[k]||{q:0,t:0,g:0});prod[k].q+=l.qty;prod[k].t+=l.qty*l.price;prod[k].g+=(l.price-(l.cost||0))*l.qty}));
+  return{a,b,all,ok,tot,gan,days:grp(s=>localDay(s.ts)).sort((x,y)=>x[0].localeCompare(y[0])),emp:grp(s=>(s.by&&s.by.name)||s.device),pay:grp(s=>s.method),prod:Object.entries(prod).sort((x,y)=>y[1].g-x[1].g)};
+}
+function vRepo(){
+  const r=repoData(),per=ui.rp||"mes",ps=list("products"),mx=Math.max(1,...r.days.map(d=>d[1].t));
+  const reps=list("repairs").filter(x=>{const d=localDay(x.ts);return d>=r.a&&d<=r.b});
+  return `<div class="top"><div><h1>Reportes</h1><p>Ventas y ganancias. Solo lo ve el administrador.</p></div><button class="btn" data-act="csvrep">Exportar CSV</button></div>
+  <div class="tabs">${[["hoy","Hoy"],["7d","7 días"],["mes","Este mes"],["ant","Mes pasado"],["todo","Todo"],["custom","Fechas"]].map(([k,l])=>`<button class="tab" data-act="rperiod" data-id="${k}" aria-pressed="${per===k}">${l}</button>`).join("")}</div>
+  ${per==="custom"?`<div class="row" style="margin-bottom:14px"><div><label for="rfrom">Desde</label><input id="rfrom" type="date" value="${r.a}"></div><div><label for="rto">Hasta</label><input id="rto" type="date" value="${r.b}"></div></div>`:""}
+  <div class="grid kpis"><div class="kpi"><span>Ventas</span><b>${money(r.tot)}</b><em>${r.ok.length} factura${r.ok.length===1?"":"s"}${r.all.length-r.ok.length?` · ${r.all.length-r.ok.length} anulada${r.all.length-r.ok.length===1?"":"s"}`:""}</em></div>
+  <div class="kpi"><span>Ganancia</span><b>${money(r.gan)}</b><em>Margen ${r.tot?Math.round(r.gan/r.tot*100):0}% sobre ventas</em></div>
+  <div class="kpi"><span>Ticket promedio</span><b>${money(r.ok.length?r.tot/r.ok.length:0)}</b><em>Por factura</em></div>
+  <div class="kpi"><span>Reparaciones</span><b>${reps.length}</b><em>${reps.filter(x=>x.status==="Entregado").length} entregadas</em></div></div>
+  <div class="grid two"><div class="card"><h2>Ventas por día</h2>${r.days.slice(-31).map(([d,v])=>`<div class="row" style="flex-wrap:nowrap;margin-bottom:6px"><span class="mono" style="width:78px;flex:none">${d.slice(5)}</span><div class="bar" style="flex:1"><i style="width:${v.t/mx*100}%"></i></div><span style="width:110px;text-align:right;flex:none">${money(v.t)}</span></div>`).join("")||`<div class="empty">Sin ventas en este período.</div>`}</div>
+  <div class="grid"><div class="card"><h2>Por empleado</h2><div class="tw"><table><thead><tr><th>Quién</th><th class="n">Ventas</th><th class="n">Total</th><th class="n">Ganancia</th></tr></thead><tbody>${r.emp.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="n">${v.n}</td><td class="n">${money(v.t)}</td><td class="n">${money(v.g)}</td></tr>`).join("")||`<tr><td colspan="4" class="empty">—</td></tr>`}</tbody></table></div></div>
+  <div class="card"><h2>Por forma de pago</h2>${r.pay.map(([k,v])=>`<div class="tot"><span>${esc(k)} <span class="note">(${v.n})</span></span><b>${money(v.t)}</b></div>`).join("")||`<div class="note">—</div>`}</div></div></div>
+  <div class="card" style="margin-top:14px"><h2>Productos y servicios: lo que más ganancia dejó</h2><div class="tw"><table><thead><tr><th>Producto</th><th class="n">Unidades</th><th class="n">Vendido</th><th class="n">Ganancia</th></tr></thead><tbody>${r.prod.slice(0,15).map(([k,v])=>`<tr><td>${esc(k)}</td><td class="n">${v.q}</td><td class="n">${money(v.t)}</td><td class="n"><b>${money(v.g)}</b></td></tr>`).join("")||`<tr><td colspan="4" class="empty">Sin ventas en este período.</td></tr>`}</tbody></table></div></div>
+  <div class="card" style="margin-top:14px"><h2>Inventario hoy</h2><div class="row" style="gap:28px"><div><span class="note">Invertido (a costo)</span><div><b>${money(ps.reduce((s,p)=>s+p.stock*p.cost,0))}</b></div></div><div><span class="note">Valor a la venta</span><div><b>${money(ps.reduce((s,p)=>s+p.stock*p.price,0))}</b></div></div><div><span class="note">Por reponer</span><div><b>${ps.filter(p=>p.stock<=(Number(p.min)||0)).length}</b></div></div></div></div>`;
+}
+function csvRepo(){const r=repoData();download("reporte-"+r.a+"_"+r.b+".csv",csv([["Factura","Fecha","Cliente","Vendió","Pago","Estado","Total","Ganancia"],...r.all.map(s=>[s.num,localDay(s.ts),s.customer.name,(s.by&&s.by.name)||s.device||"",s.method,s.status,s.total,s.status==="anulada"?0:saleProfit(s)])]))}
+/* Equipo (solo administrador) */
+function vTeam(){
+  const cc=cloudCfg();
+  if(mode!=="cloud")return `<div class="top"><div><h1>Equipo</h1><p>Empleados y permisos.</p></div></div><div class="card"><p style="margin:0 0 12px">Para crear empleados con su propia cuenta, conecta primero la nube en Ajustes. Mientras no esté conectada, este dispositivo funciona como administrador.</p><button class="btn p" data-go="aj">Ir a Ajustes</button></div>`;
+  const us=Object.entries(S.usuarios||{}).map(([id,u])=>({id,...u})).sort((a,b)=>(a.rol===b.rol?String(a.nombre).localeCompare(b.nombre):a.rol==="admin"?-1:1));
+  return `<div class="top"><div><h1>Equipo</h1><p>Crea cuentas para tus empleados y desactívalas cuando dejen de trabajar contigo.</p></div></div>
+  <div class="card"><h2>Nuevo empleado</h2><div class="f"><div><label for="te_name">Nombre</label><input id="te_name"></div><div><label for="te_mail">Correo</label><input id="te_mail" type="email" autocomplete="off"></div><div><label for="te_pass">Contraseña inicial (mín. 6)</label><input id="te_pass" type="text" autocomplete="off"></div><div><label for="te_rol">Rol</label><select id="te_rol"><option value="empleado">Empleado</option><option value="admin">Administrador</option></select></div></div>
+  <div class="row" style="margin-top:12px"><button class="btn p" data-act="empnew">Crear empleado</button><span class="note">Necesita internet. Entrégale el correo y la contraseña; podrá cambiarla con “Olvidé mi contraseña” o tú puedes enviarle el enlace.</span></div></div>
+  <div class="card" style="margin-top:14px"><h2>Personas con acceso</h2><div class="tw"><table><thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th></th></tr></thead><tbody>${us.map(u=>{const me=u.id===ME.uid;return `<tr><td><b>${esc(u.nombre)}</b>${me?` <span class="note">(tú)</span>`:""}</td><td>${esc(u.email)}</td><td><span class="pill ${u.rol==="admin"?"warn":"mut"}">${u.rol==="admin"?"Administrador":"Empleado"}</span></td><td><span class="pill ${u.activo?"good":"bad"}">${u.activo?"Activo":"Desactivado"}</span></td><td class="n" style="white-space:nowrap">${me?"":`<button class="btn s" data-act="emptoggle" data-id="${u.id}">${u.activo?"Desactivar":"Activar"}</button> <button class="btn s" data-act="emprole" data-id="${u.id}">${u.rol==="admin"?"Pasar a empleado":"Hacer administrador"}</button> <button class="btn s" data-act="emppw" data-id="${u.id}">Enviar clave</button>`}</td></tr>`}).join("")||`<tr><td colspan="5" class="empty">Aún no hay personas.</td></tr>`}</tbody></table></div></div>
+  <div class="card" style="margin-top:14px"><h2>Qué puede hacer cada rol</h2><div class="f"><div><b>Administrador</b><div class="note">Todo: empleados, ganancias y reportes, inventario completo, costos, ajustes y nube.</div></div><div><b>Empleado</b><div class="note">Vender, recibir reparaciones, registrar clientes, consultar inventario, descontar repuestos e imprimir facturas. Sin ganancias, costos ni usuarios.</div></div></div></div>`;
+}
+async function empNew(){
+  const g=id=>$("#"+id).value.trim(),nm=g("te_name"),mail=g("te_mail"),pass=$("#te_pass").value,rol=$("#te_rol").value;
+  if(!nm||!mail||pass.length<6){toast("Escribe nombre, correo y una contraseña de al menos 6 caracteres");return}
+  if(!FS||!navigator.onLine){toast("Necesitas internet para crear empleados");return}
+  let sec;
+  try{
+    sec=firebase.initializeApp(cloudCfg().config,"sec"+Date.now());
+    const cr=await sec.auth().createUserWithEmailAndPassword(mail,pass);
+    await DB.doc("usuarios/"+cr.user.uid).set({nombre:nm,email:mail,rol,activo:true,ts:new Date().toISOString(),creadoPor:ME.uid});
+    await sec.auth().signOut();toast("Empleado creado: "+nm);["te_name","te_mail","te_pass"].forEach(i=>{const e=$("#"+i);if(e)e.value=""});
+  }catch(e){toast(e.code==="auth/email-already-in-use"?"Ese correo ya tiene cuenta. Usa otro correo.":e.code==="auth/weak-password"?"La contraseña es muy débil.":(e.code==="permission-denied"?"Las reglas de Firebase no permiten crear empleados. Revisa el README.":authMsg(e)))}
+  finally{try{if(sec)await sec.delete()}catch(e){}}
+}
+async function empAct(kind,id){
+  const u=S.usuarios[id];if(!u||id===ME.uid)return;
+  try{
+    if(kind==="toggle"){await DB.doc("usuarios/"+id).update({activo:!u.activo});toast(u.activo?"Empleado desactivado":"Empleado activado")}
+    else if(kind==="role"){await DB.doc("usuarios/"+id).update({rol:u.rol==="admin"?"empleado":"admin"});toast("Rol actualizado")}
+    else if(kind==="pw"){await firebase.auth().sendPasswordResetEmail(u.email);toast("Enlace enviado a "+u.email)}
+  }catch(e){toast("No se pudo: "+(e.code||e.message))}
 }
 </script>
 <script>
 function totBox(){const t=cartTotals(),c=cfg();return `<div class="tot"><span>Subtotal</span><span>${money(t.sub)}</span></div>${t.disc?`<div class="tot"><span>Descuento</span><span>− ${money(t.disc)}</span></div>`:""}${+c.tax?`<div class="tot"><span>IVA ${c.tax}%</span><span>${money(t.tax)}</span></div>`:""}<div class="tot big"><span>Total</span><span>${money(t.total)}</span></div>`}
 function vPanel(){
-  const ok=list("sales").filter(s=>s.status!=="anulada"),now=new Date(),d0=today(),m0=now.toISOString().slice(0,7);
-  const day=ok.filter(s=>s.ts.slice(0,10)===d0),mon=ok.filter(s=>s.ts.slice(0,7)===m0);
+  const ok=list("sales").filter(s=>s.status!=="anulada"),now=new Date(),d0=today(),m0=d0.slice(0,7);
+  const day=ok.filter(s=>localDay(s.ts)===d0),mon=ok.filter(s=>localDay(s.ts).slice(0,7)===m0);
   const profit=mon.reduce((a,s)=>a+s.items.reduce((b,l)=>b+(l.price-(l.cost||0))*l.qty,0)-s.discount,0);
   const top={};mon.forEach(s=>s.items.forEach(l=>{if(l.pid){top[l.name]=(top[l.name]||0)+l.qty}}));
   const tops=Object.entries(top).sort((a,b)=>b[1]-a[1]).slice(0,5);
@@ -442,10 +615,15 @@ function vPanel(){
   const act=list("repairs").filter(r=>r.status!=="Entregado").length,ready=list("repairs").filter(r=>r.status==="Listo").length;
   const rec=ok.sort((a,b)=>b.ts.localeCompare(a.ts)).slice(0,6);
   return `<div class="top"><div><h1>Panel</h1><p>${now.toLocaleDateString("es-NI",{weekday:"long",day:"numeric",month:"long"})}</p></div><div class="row"><button class="btn" data-act="newr">+ Recibir equipo</button><button class="btn p" data-go="venta">Nueva venta</button></div></div>
+  ${isAdmin()?`
   <div class="grid kpis"><div class="kpi"><span>Ventas de hoy</span><b>${money(day.reduce((s,x)=>s+x.total,0))}</b><em>${day.length} facturas</em></div>
   <div class="kpi"><span>Ventas del mes</span><b>${money(mon.reduce((s,x)=>s+x.total,0))}</b><em>${mon.length} facturas</em></div>
   <div class="kpi"><span>Ganancia del mes</span><b>${money(profit)}</b><em>Precio menos costo de lo vendido</em></div>
   <div class="kpi"><span>Equipos en taller</span><b>${act}</b><em>${ready} listos para entregar</em></div></div>
+  `:`
+  <div class="grid kpis"><div class="kpi"><span>Mis ventas de hoy</span><b>${money(day.filter(s=>(s.by&&s.by.uid)===ME.uid).reduce((t,x)=>t+x.total,0))}</b><em>${day.filter(s=>(s.by&&s.by.uid)===ME.uid).length} facturas</em></div>
+  <div class="kpi"><span>Equipos en taller</span><b>${act}</b><em>${ready} listos para entregar</em></div></div>
+  `}
   <div class="grid two"><div class="card"><h2>Últimas ventas</h2><div class="tw"><table><tbody>${rec.map(s=>`<tr><td class="mono">${esc(s.num)}</td><td>${esc(s.customer.name)}<div class="note">${fdate(s.ts)}</div></td><td class="n"><b>${money(s.total)}</b></td></tr>`).join("")||`<tr><td class="empty">Todavía no hay ventas.</td></tr>`}</tbody></table></div></div>
   <div class="grid"><div class="card"><h2>Por reponer</h2>${low.map(p=>`<div class="tot"><span>${esc(p.name)}</span><span class="pill ${p.stock<=0?"bad":"warn"}">${p.stock} en existencia</span></div>`).join("")||`<div class="note">Todo el inventario está sobre el mínimo.</div>`}</div>
   <div class="card"><h2>Más vendidos del mes</h2>${tops.map(([n,q])=>`<div class="tot"><span>${esc(n)}</span><b>${q} u.</b></div>`).join("")||`<div class="note">Aparecerán cuando registres ventas.</div>`}</div></div></div>`;
@@ -453,13 +631,13 @@ function vPanel(){
 function vAj(){
   const c=cfg();
   return `<div class="top"><div><h1>Ajustes</h1><p>Datos que salen impresos en tus facturas.</p></div></div>
-  <div class="card"><form id="af" class="grid"><div class="f"><div><label for="an">Nombre del negocio</label><input id="an" value="${esc(c.name)}"></div><div><label for="aph">Teléfono</label><input id="aph" value="${esc(c.phone)}"></div><div><label for="ar">RUC (opcional)</label><input id="ar" value="${esc(c.ruc)}"></div></div>
+  ${isAdmin()?`  <div class="card"><form id="af" class="grid"><div class="f"><div><label for="an">Nombre del negocio</label><input id="an" value="${esc(c.name)}"></div><div><label for="aph">Teléfono</label><input id="aph" value="${esc(c.phone)}"></div><div><label for="ar">RUC (opcional)</label><input id="ar" value="${esc(c.ruc)}"></div></div>
   <div><label for="aa">Dirección</label><input id="aa" value="${esc(c.address)}"></div>
   <div class="f"><div><label for="alg">Logo del negocio</label><div class="row"><img id="logoPrev" alt="Logo" src="${c.logo||""}" style="height:52px;max-width:120px;border-radius:6px;border:1px solid var(--line);background:#fff;${c.logo?"":"display:none"}"><input id="alg" type="file" accept="image/*" style="flex:1;min-width:150px">${c.logo?`<button type="button" class="btn s d" data-act="rmlogo">Quitar</button>`:""}</div><div class="note" style="margin-top:4px">Aparece en facturas y tickets. Se ajusta solo a un tamaño liviano.</div></div>
   <div><label for="apw">Ancho del papel del ticket</label><select id="apw"><option value="80" ${c.paper==="80"?"selected":""}>80 mm (estándar)</option><option value="58" ${c.paper==="58"?"selected":""}>58 mm (pequeña)</option></select></div></div>
   <div class="f"><div><label for="at">IVA (%). Pon 0 si no lo cobras</label><input id="at" type="number" min="0" step="0.01" value="${c.tax}"></div><div><label for="al">Aviso de stock bajo por defecto</label><input id="al" type="number" min="0" value="${c.lowDefault}"></div></div>
   <div><label for="af2">Mensaje al pie de la factura</label><textarea id="af2" rows="2">${esc(c.footer)}</textarea></div>
-  <div class="row" style="justify-content:space-between"><button type="button" class="btn" data-act="backup">Descargar respaldo (JSON)</button><button class="btn p">Guardar ajustes</button></div></form></div>${CAN_PRINT?cloudCard():""}${CAN_PRINT?printerCard():""}${mode!=="db"?`<div class="card" style="margin-top:14px"><h2>Respaldo y otro dispositivo</h2><p class="note" style="margin:0 0 10px">Tus datos viven en este dispositivo y funcionan sin internet. Descarga un respaldo seguido, y restáuralo aquí si cambias de teléfono o computadora.</p>${mode==="local"?`<label for="rst">Restaurar desde un respaldo (.json)</label><input id="rst" type="file" accept=".json,application/json">`:""}${CAN_PRINT?`<div class="row" style="margin-top:14px;justify-content:space-between"><span class="note">Versión ${typeof APP_VERSION!=="undefined"?APP_VERSION:""}. Se actualiza sola al abrir con internet.</span><button type="button" class="btn s" data-act="upd">Buscar actualización</button></div>`:""}</div>`:""}${CAN_PRINT&&!matchMedia("(display-mode: standalone)").matches?`<div class="card" style="margin-top:14px"><h2>Instalar la app</h2><div class="f"><div><b>Android</b><div class="note">Chrome → menú ⋮ → Instalar app.</div></div><div><b>iPhone</b><div class="note">Abre en Safari → Compartir → Añadir a pantalla de inicio.</div></div><div><b>PC</b><div class="note">Chrome o Edge → icono de instalar en la barra de direcciones.</div></div></div><div class="row" style="margin-top:12px"><button class="btn p" data-act="install">Instalar ahora</button></div></div>`:""}`;
+  <div class="row" style="justify-content:space-between"><button type="button" class="btn" data-act="backup">Descargar respaldo (JSON)</button><button class="btn p">Guardar ajustes</button></div></form></div>`:""}${CAN_PRINT?cloudCard():""}${CAN_PRINT?printerCard():""}${mode!=="db"&&isAdmin()?`<div class="card" style="margin-top:14px"><h2>Respaldo y otro dispositivo</h2><p class="note" style="margin:0 0 10px">Tus datos viven en este dispositivo y funcionan sin internet. Descarga un respaldo seguido, y restáuralo aquí si cambias de teléfono o computadora.</p>${mode==="local"?`<label for="rst">Restaurar desde un respaldo (.json)</label><input id="rst" type="file" accept=".json,application/json">`:""}${CAN_PRINT?`<div class="row" style="margin-top:14px;justify-content:space-between"><span class="note">Versión ${typeof APP_VERSION!=="undefined"?APP_VERSION:""}. Se actualiza sola al abrir con internet.</span><button type="button" class="btn s" data-act="upd">Buscar actualización</button></div>`:""}</div>`:""}${CAN_PRINT&&!matchMedia("(display-mode: standalone)").matches?`<div class="card" style="margin-top:14px"><h2>Instalar la app</h2><div class="f"><div><b>Android</b><div class="note">Chrome → menú ⋮ → Instalar app.</div></div><div><b>iPhone</b><div class="note">Abre en Safari → Compartir → Añadir a pantalla de inicio.</div></div><div><b>PC</b><div class="note">Chrome o Edge → icono de instalar en la barra de direcciones.</div></div></div><div class="row" style="margin-top:12px"><button class="btn p" data-act="install">Instalar ahora</button></div></div>`:""}`;
 }
 function dismissed(){try{return new Set(JSON.parse(localStorage.getItem("tp_dis")||"[]"))}catch(e){return new Set()}}
 function saveDis(s){try{localStorage.setItem("tp_dis",JSON.stringify([...s].slice(-300)))}catch(e){}}
@@ -471,8 +649,8 @@ function alerts(){
     else if(r.status!=="Entregado"&&now-new Date(r.ts)>5*864e5)out.push({key:"a:"+r.id,lvl:"warn",title:"Más de 5 días en taller: "+r.device,text:r.customer.name+" · orden "+r.num+" · "+r.status,rep:r.id});
     if(r.status==="Entregado"&&!r.saleId)out.push({key:"f:"+r.id,lvl:"warn",title:"Entregado sin facturar: "+r.device,text:"Orden "+r.num+" de "+r.customer.name,rep:r.id});
   });
-  list("sales").forEach(s=>{if(s.device&&s.device!==myDevice()&&s.status!=="anulada"&&now-new Date(s.ts)<864e5)out.push({key:"v:"+s.id,lvl:"good",title:"Nueva venta "+s.num+" · "+money(s.total),text:"Registrada en "+s.device+" · "+s.customer.name,go:"fac"})});
-  try{if(mode!=="db"&&(list("sales").length||list("products").length)){const lb=+(localStorage.getItem("tp_backup")||0);if(now-lb>7*864e5)out.push({key:"b:"+Math.floor(now/(7*864e5)),lvl:"warn",title:"Haz un respaldo de tus datos",text:lb?"El último respaldo tiene más de 7 días.":"Aún no has descargado ningún respaldo.",go:"aj"})}}catch(e){}
+  if(isAdmin())list("sales").forEach(s=>{if(s.device&&s.device!==myDevice()&&s.status!=="anulada"&&now-new Date(s.ts)<864e5)out.push({key:"v:"+s.id,lvl:"good",title:"Nueva venta "+s.num+" · "+money(s.total),text:"Registrada en "+s.device+" · "+s.customer.name,go:"fac"})});
+  try{if(isAdmin()&&mode!=="db"&&(list("sales").length||list("products").length)){const lb=+(localStorage.getItem("tp_backup")||0);if(now-lb>7*864e5)out.push({key:"b:"+Math.floor(now/(7*864e5)),lvl:"warn",title:"Haz un respaldo de tus datos",text:lb?"El último respaldo tiene más de 7 días.":"Aún no has descargado ningún respaldo.",go:"aj"})}}catch(e){}
   return out.filter(a=>!dis.has(a.key));
 }
 function updateBell(){
@@ -487,12 +665,14 @@ function alertsModal(){
   openModal(`<h2>Notificaciones</h2><p class="note">Avisos de tu taller: inventario, equipos listos y pendientes.</p><div style="margin-top:10px">${al.map(a=>`<div class="al"><span class="dot ${a.lvl==="warn"?"":a.lvl}"></span><div><b>${esc(a.title)}</b><div class="note">${esc(a.text)}</div></div><div class="row" style="flex-wrap:nowrap"><button class="btn s" data-act="algo" data-id="${esc(a.key)}">Ver</button><button class="btn s" data-act="aldis" data-id="${esc(a.key)}" aria-label="Descartar">✕</button></div></div>`).join("")||`<div class="empty">No hay avisos pendientes.</div>`}</div>
   <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-act="alall" ${al.length?"":"disabled"}>Descartar todas</button><button class="btn p" data-act="close">Cerrar</button></div>`);
 }
-const VIEWS={panel:vPanel,venta:vVenta,rep:vRep,inv:vInv,fac:vFac,aj:vAj};
+const VIEWS={panel:vPanel,venta:vVenta,rep:vRep,cli:vCli,inv:vInv,fac:vFac,reportes:vRepo,equipo:vTeam,aj:vAj};
 function render(force){
+  if(ADMIN_VIEWS.has(view)&&!isAdmin())view="panel";
   const a=document.activeElement;
-  if(!force&&a&&$("#main").contains(a)&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)&&view==="aj")return;
+  if(!force&&a&&$("#main").contains(a)&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)&&(view==="aj"||view==="equipo"))return;
   $("#main").innerHTML=VIEWS[view]();
   $("#brandName").textContent=cfg().name;updateBell();
+  document.querySelectorAll("[data-admin]").forEach(b=>b.hidden=!isAdmin());const mn=$("#meNote");if(mn)mn.textContent=mode==="cloud"?myName()+" · "+(isAdmin()?"Administrador":"Empleado"):"";
   document.querySelectorAll(".nav").forEach(b=>b.dataset.v===view?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
   const f=$("#af");if(f)f.onsubmit=async e=>{e.preventDefault();await putSettings({name:$("#an").value.trim()||"Mi Taller",phone:$("#aph").value.trim(),ruc:$("#ar").value.trim(),address:$("#aa").value.trim(),tax:+$("#at").value||0,lowDefault:parseInt($("#al").value)||0,footer:$("#af2").value,paper:$("#apw").value});toast("Ajustes guardados");render(true)};
 }
@@ -645,26 +825,27 @@ function parseCfg(txt){
   if(!o.apiKey||!o.projectId)throw new Error("Falta apiKey o projectId en la configuración.");return o;
 }
 async function initCloud(){
-  const c=cloudCfg();CS={state:"loading",msg:""};
+  const c=cloudCfg();CS={state:"loading",msg:""};gate("loading");
   try{
     await loadSdk();
     if(!firebase.apps.length)firebase.initializeApp(c.config);
     const user=await new Promise(res=>{const u=firebase.auth().onAuthStateChanged(x=>{u();res(x)})});
-    if(!user){CS={state:"login",msg:"Falta iniciar sesión."};updNet();return}
+    if(!user){CS={state:"login",msg:""};gate("login");updNet();return}
     const fs=firebase.firestore();
     try{await fs.enablePersistence({synchronizeTabs:true})}catch(e){}
-    DB={collection:n=>fs.collection("negocios/"+c.code+"/"+n),doc:p=>fs.doc("negocios/"+c.code+"/"+p)};
-    FS=true;mode="cloud";CS={state:"ok",msg:""};
-    const first=col=>{if(ui.seen)alerts().forEach(a=>ui.seen.add(a.key));ui["fs_"+col]=1};
-    COLS.forEach(col=>DB.collection(col).onSnapshot(sn=>{
-      if(sn.metadata.fromCache&&sn.empty&&Object.keys(S[col]).length)return;
-      S[col]={};sn.docs.forEach(d=>S[col][d.id]=d.data());
-      if(!sn.metadata.fromCache&&!ui["fs_"+col])first(col);
-      saveLocalSoon();render();
-    },e=>toast("Error de sincronización: "+(e.code||e.message))));
-    DB.doc("config/main").onSnapshot(d=>{S.settings=d.exists?d.data():{};saveLocalSoon();render()},()=>{});
-    updNet();prUI();
-  }catch(e){CS={state:"error",msg:e.message||String(e)};updNet();prUI()}
+    DB={collection:n=>fs.collection("negocios/"+c.code+"/"+n),doc:p=>fs.doc("negocios/"+c.code+"/"+p)};FS=true;mode="cloud";
+    DB.doc("usuarios/"+user.uid).onSnapshot(async d=>{
+      if(!d.exists){
+        if(d.metadata.fromCache){if(!useCachedRole(user.uid))gate("offline");return}
+        let ow=null;try{ow=await DB.doc("meta/owner").get()}catch(e){}
+        if(ow&&!ow.exists)gate("claim");else if(ow)gate("denied");else if(!useCachedRole(user.uid))gate("offline");
+        return;
+      }
+      const u=d.data();
+      if(!u.activo){gate("disabled");try{localStorage.removeItem("tp_role")}catch(e){}try{await firebase.auth().signOut()}catch(e){}return}
+      applyRole(u,user);
+    },()=>{if(!useCachedRole(user.uid))gate("offline")});
+  }catch(e){CS={state:"error",msg:e.message||String(e)};gate("offline");updNet()}
 }
 async function cloudConnect(){
   const g=id=>$("#"+id).value.trim();
@@ -677,13 +858,12 @@ async function cloudConnect(){
     localStorage.setItem(CK,JSON.stringify({config,code,email}));
     toast("Conectado. Cargando datos…");setTimeout(()=>location.reload(),700);
   }catch(e){
-    const m={"auth/invalid-credential":"Correo o contraseña incorrectos.","auth/wrong-password":"Correo o contraseña incorrectos.","auth/user-not-found":"Ese correo no existe en Firebase.","auth/network-request-failed":"Sin internet para iniciar sesión.","auth/invalid-api-key":"La configuración de Firebase no es válida."}[e.code];
-    toast(m||e.message||"No se pudo conectar");
+    toast(authMsg(e));
   }
 }
 async function cloudOff(){
   try{if(window.firebase&&firebase.apps.length)await firebase.auth().signOut()}catch(e){}
-  try{localStorage.removeItem(CK)}catch(e){}
+  try{localStorage.removeItem(CK);localStorage.removeItem("tp_role")}catch(e){}
   location.reload();
 }
 async function cloudUp(){
@@ -707,7 +887,7 @@ function cloudCard(){
   <div><label for="cl_ser">Serie de facturas (única por dispositivo)</label><input id="cl_ser" value="${esc(mySerie())}" maxlength="3" placeholder="A" style="text-transform:uppercase"></div></div>
   <p class="note" style="margin:8px 0 0">Cada dispositivo usa su propia serie (ej. A para la tienda, B para tu teléfono) para que las facturas nunca se repitan, incluso sin internet.</p>`;
   const body=cc?`<div class="note" style="margin-top:10px">Negocio: <b>${esc(cc.code)}</b> · Cuenta: <b>${esc(cc.email)}</b>${CS.msg?` · ${esc(CS.msg)}`:""}</div>
-  <div class="row" style="margin-top:12px">${on?`<button type="button" class="btn" data-act="cloudup">Subir los datos de este dispositivo</button>`:""}<button type="button" class="btn d" data-act="clouddis">Desconectar</button></div>
+  <div class="row" style="margin-top:12px">${on&&isAdmin()?`<button type="button" class="btn" data-act="cloudup">Subir los datos de este dispositivo</button>`:""}<button type="button" class="btn" data-act="gosignout">Cerrar sesión</button>${isAdmin()?`<button type="button" class="btn d" data-act="clouddis">Desconectar de la nube</button>`:""}</div>
   <p class="note" style="margin:10px 0 0">Al conectar, este dispositivo muestra los datos de la nube. Si ya tenías ventas aquí, usa “Subir los datos de este dispositivo” una sola vez, en el primer equipo.</p>`
   :`<div style="margin-top:12px" class="grid"><div><label for="cl_cfg">Configuración de Firebase (pégala completa)</label><textarea id="cl_cfg" rows="4" placeholder="const firebaseConfig = { apiKey: &quot;…&quot;, projectId: &quot;…&quot;, … }"></textarea></div>
   <div class="f"><div><label for="cl_code">Código del negocio</label><input id="cl_code" value="taller"></div><div><label for="cl_mail">Correo de la cuenta</label><input id="cl_mail" type="email" autocomplete="username"></div><div><label for="cl_pass">Contraseña</label><input id="cl_pass" type="password" autocomplete="current-password"></div></div>
@@ -722,6 +902,7 @@ document.addEventListener("click",async e=>{
   const g=e.target.closest("[data-go]");if(g){go(g.dataset.go);return}
   const b=e.target.closest("[data-act]");if(!b)return;
   const a=b.dataset.act,id=b.dataset.id;
+  if(["newp","editp","delp","stock","csvinv","csvsales","void","backup","dorestore","cloudup","clouddis","rmlogo","csvrep","empnew","emptoggle","emprole","emppw","delc"].includes(a)&&!isAdmin()){toast("Solo el administrador puede hacer esto");return}
   switch(a){
     case"close":closeModal();break;
     case"newp":prodForm();break;
@@ -750,6 +931,22 @@ document.addEventListener("click",async e=>{
     case"cloudgo":cloudConnect();break;
     case"clouddis":if(b.dataset.sure)cloudOff();else{b.dataset.sure=1;b.textContent="Confirmar desconexión"}break;
     case"cloudup":cloudUp();break;
+    case"gologin":goLogin();break;
+    case"goclaim":goClaim();break;
+    case"gosignout":cloudSignOut();break;
+    case"goretry":location.reload();break;
+    case"clouddis2":if(b.dataset.sure)cloudOff();else{b.dataset.sure=1;b.textContent="Confirmar"}break;
+    case"newc":cliForm();break;
+    case"editc":cliForm(id);break;
+    case"delc":if(b.dataset.sure){await del("clientes",id);closeModal();toast("Cliente eliminado")}else{b.dataset.sure=1;b.textContent="Confirmar eliminación"}break;
+    case"seec":cliHist(id);break;
+    case"rperiod":ui.rp=id;render(true);break;
+    case"csvrep":csvRepo();break;
+    case"empnew":empNew();break;
+    case"emptoggle":empAct("toggle",id);break;
+    case"emprole":empAct("role",id);break;
+    case"emppw":empAct("pw",id);break;
+    case"gosignout2":cloudSignOut();break;
     case"fmt":showInvoice(id,b.dataset.f);break;
     case"prt":printDoc(ui.fmt,id);break;
     case"dlk":dlDoc(ui.fmt,id);break;
@@ -771,12 +968,15 @@ document.addEventListener("click",async e=>{
   }
 });
 document.addEventListener("input",e=>{
-  const id=e.target.id,m={iq:"iq",pq:"pq",fq:"fq",rq:"rq"};
+  const id=e.target.id,m={iq:"iq",pq:"pq",fq:"fq",rq:"rq",cq:"cq"};
   if(m[id]){ui[m[id]]=e.target.value;const pos=e.target.selectionStart;render(true);const el=$("#"+id);if(el){el.focus();try{el.setSelectionRange(pos,pos)}catch(x){}}}
   else if(id==="cd"){syncCust();$("#totbox").innerHTML=totBox()}
-  else if(["cn","cp","cm"].includes(id))syncCust();
+  else if(id==="cn"){const c=findClient(e.target.value,"");if(c&&c.phone&&$("#cp")&&!$("#cp").value)$("#cp").value=c.phone;syncCust()}
+  else if(id==="rn"){const c=findClient(e.target.value,"");if(c&&c.phone&&$("#rp")&&!$("#rp").value)$("#rp").value=c.phone}
+  else if(["cp","cm"].includes(id))syncCust();
 });
 document.addEventListener("change",async e=>{
+  if(e.target.id==="rfrom"||e.target.id==="rto"){ui[e.target.id]=e.target.value;render(true);return}
   const pm={pr_m:["prmethod",x=>x.value],pr_e:["enc",x=>x.value],pr_b:["baud",x=>+x.value],pr_l:["prLogo",x=>x.checked],pr_a:["autoprint",x=>x.checked]}[e.target.id];
   if(e.target.id==="cl_dev"||e.target.id==="cl_ser"){const v=e.target.id==="cl_ser"?(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,3)||"F"):(e.target.value.trim()||myDevice());try{localStorage.setItem(e.target.id==="cl_ser"?"tp_serie":"tp_device",v)}catch(x){}e.target.value=v;toast("Guardado");return}
   if(pm){await putSettings({[pm[0]]:pm[1](e.target)});toast("Guardado");return}
@@ -790,11 +990,11 @@ document.addEventListener("change",async e=>{
 });
 addEventListener("beforeinstallprompt",e=>{e.preventDefault();window.deferredInstall=e;$("#installBtn").hidden=false});
 addEventListener("appinstalled",()=>{window.deferredInstall=null;$("#installBtn").hidden=true;toast("App instalada")});
-(async()=>{render(true);await initStore();render(true);if(CAN_PRINT)prAuto();setTimeout(()=>{ui.seen=new Set(alerts().map(a=>a.key));ui.armed=true},1800)})();
+(async()=>{if(cloudCfg())gate("loading");render(true);await initStore();render(true);if(CAN_PRINT)prAuto();setTimeout(()=>{ui.seen=new Set(alerts().map(a=>a.key));ui.armed=true},1800)})();
 </script>
 
 <script>
-const APP_VERSION="4.0 · 18 nov 2026";
+const APP_VERSION="5.0 · 19 nov 2026";
 if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){
   let had=!!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener("controllerchange",()=>{
