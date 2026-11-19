@@ -151,7 +151,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 "use strict";
 const COLS=["products","sales","repairs","moves"];
 const S={products:{},sales:{},repairs:{},moves:{},settings:{}};
-const DEF={name:"Mi Taller",phone:"",address:"",ruc:"",tax:0,next:1,nextRep:1,footer:"Gracias por su preferencia. Garantía de reparación: 30 días.",lowDefault:3,paper:"80",logo:""};
+const DEF={name:"Mi Taller",phone:"",address:"",ruc:"",tax:0,next:1,nextRep:1,footer:"Gracias por su preferencia. Garantía de reparación: 30 días.",lowDefault:3,paper:"80",logo:"",enc:"cp858",prLogo:true,autoprint:false,baud:9600,prmethod:"direct"};
 let DB=null,mode="local",view="panel",ui={};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -296,7 +296,7 @@ async function checkout(){
   await put("sales",id,sale);
   for(const l of sale.items){if(l.pid)await adjustStock(l.pid,-l.qty,"venta","Factura "+num)}
   ui.cart=[];ui.cust={name:"",phone:"",method:"Efectivo",disc:0,note:""};
-  toast("Venta registrada e inventario actualizado");render();showInvoice(id);
+  toast("Venta registrada e inventario actualizado");render();showInvoice(id);if(CAN_PRINT&&cfg().autoprint)printDirect(id,true);
 }
 </script>
 <script>
@@ -315,7 +315,7 @@ function showInvoice(id,fmt){
   const tk=ui.fmt==="ticket",w=cfg().paper==="58"?"48mm":"72mm";
   openModal(`<div class="row" style="justify-content:space-between;margin-bottom:12px"><h2>Vista previa · ${esc(s.num)}</h2><div class="tabs" style="margin:0"><button class="tab" data-act="fmt" data-id="${id}" data-f="ticket" aria-pressed="${tk}">Ticket</button><button class="tab" data-act="fmt" data-id="${id}" data-f="factura" aria-pressed="${!tk}">Factura</button></div></div>
   <div style="background:var(--surface2);border-radius:12px;padding:16px;max-height:58vh;overflow:auto">${tk?`<div class="tkp" style="width:${w}">${ticketBody(s)}</div>`:`<div class="inv">${invBody(s)}</div>`}</div>
-  <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-act="close">Cerrar</button>${s.status!=="anulada"?`<button class="btn d" data-act="void" data-id="${id}">Anular</button>`:""}<button class="btn" data-act="copyinv" data-id="${id}">WhatsApp</button><button class="btn" data-act="dlk" data-id="${id}">Descargar</button><button class="btn p" data-act="prt" data-id="${id}">Imprimir ${tk?"ticket":"factura"}</button></div>
+  <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-act="close">Cerrar</button>${s.status!=="anulada"?`<button class="btn d" data-act="void" data-id="${id}">Anular</button>`:""}<button class="btn" data-act="copyinv" data-id="${id}">WhatsApp</button><button class="btn" data-act="dlk" data-id="${id}">Descargar</button>${CAN_PRINT&&tk?`<button class="btn" data-act="prt" data-id="${id}">Imprimir (diálogo)</button><button class="btn p" data-act="prdirect" data-id="${id}">Imprimir directo</button>`:`<button class="btn p" data-act="prt" data-id="${id}">Imprimir ${tk?"ticket":"factura"}</button>`}</div>
   <p class="note" style="text-align:right;margin:8px 0 0">${CAN_PRINT?"Se abre el diálogo de impresión de tu dispositivo: elige tu impresora.":"Aquí se descarga el documento para imprimir. Instalada la app, imprime directo."}</p>`);
 }
 function invText(s){const c=cfg();return `*${c.name}*\nFactura ${s.num} · ${fdate(s.ts)}\nCliente: ${s.customer.name}\n\n`+s.items.map(l=>`${l.qty} x ${l.name} — ${money(l.qty*l.price)}`).join("\n")+(s.discount?`\nDescuento: -${money(s.discount)}`:"")+(s.tax?`\nIVA: ${money(s.tax)}`:"")+`\n*TOTAL: ${money(s.total)}*\nPago: ${s.method}\n\n${c.footer}`}
@@ -456,7 +456,7 @@ function vAj(){
   <div><label for="apw">Ancho del papel del ticket</label><select id="apw"><option value="80" ${c.paper==="80"?"selected":""}>80 mm (estándar)</option><option value="58" ${c.paper==="58"?"selected":""}>58 mm (pequeña)</option></select></div></div>
   <div class="f"><div><label for="at">IVA (%). Pon 0 si no lo cobras</label><input id="at" type="number" min="0" step="0.01" value="${c.tax}"></div><div><label for="al">Aviso de stock bajo por defecto</label><input id="al" type="number" min="0" value="${c.lowDefault}"></div><div><label for="anx">Próxima factura número</label><input id="anx" type="number" min="1" value="${c.next}"></div></div>
   <div><label for="af2">Mensaje al pie de la factura</label><textarea id="af2" rows="2">${esc(c.footer)}</textarea></div>
-  <div class="row" style="justify-content:space-between"><button type="button" class="btn" data-act="backup">Descargar respaldo (JSON)</button><button class="btn p">Guardar ajustes</button></div></form></div>${mode!=="db"?`<div class="card" style="margin-top:14px"><h2>Respaldo y otro dispositivo</h2><p class="note" style="margin:0 0 10px">Tus datos viven en este dispositivo y funcionan sin internet. Descarga un respaldo seguido, y restáuralo aquí si cambias de teléfono o computadora.</p><label for="rst">Restaurar desde un respaldo (.json)</label><input id="rst" type="file" accept=".json,application/json">${CAN_PRINT?`<div class="row" style="margin-top:14px;justify-content:space-between"><span class="note">Versión ${typeof APP_VERSION!=="undefined"?APP_VERSION:""}. Se actualiza sola al abrir con internet.</span><button type="button" class="btn s" data-act="upd">Buscar actualización</button></div>`:""}</div>`:""}${CAN_PRINT&&!matchMedia("(display-mode: standalone)").matches?`<div class="card" style="margin-top:14px"><h2>Instalar la app</h2><div class="f"><div><b>Android</b><div class="note">Chrome → menú ⋮ → Instalar app.</div></div><div><b>iPhone</b><div class="note">Abre en Safari → Compartir → Añadir a pantalla de inicio.</div></div><div><b>PC</b><div class="note">Chrome o Edge → icono de instalar en la barra de direcciones.</div></div></div><div class="row" style="margin-top:12px"><button class="btn p" data-act="install">Instalar ahora</button></div></div>`:""}`;
+  <div class="row" style="justify-content:space-between"><button type="button" class="btn" data-act="backup">Descargar respaldo (JSON)</button><button class="btn p">Guardar ajustes</button></div></form></div>${CAN_PRINT?printerCard():""}${mode!=="db"?`<div class="card" style="margin-top:14px"><h2>Respaldo y otro dispositivo</h2><p class="note" style="margin:0 0 10px">Tus datos viven en este dispositivo y funcionan sin internet. Descarga un respaldo seguido, y restáuralo aquí si cambias de teléfono o computadora.</p><label for="rst">Restaurar desde un respaldo (.json)</label><input id="rst" type="file" accept=".json,application/json">${CAN_PRINT?`<div class="row" style="margin-top:14px;justify-content:space-between"><span class="note">Versión ${typeof APP_VERSION!=="undefined"?APP_VERSION:""}. Se actualiza sola al abrir con internet.</span><button type="button" class="btn s" data-act="upd">Buscar actualización</button></div>`:""}</div>`:""}${CAN_PRINT&&!matchMedia("(display-mode: standalone)").matches?`<div class="card" style="margin-top:14px"><h2>Instalar la app</h2><div class="f"><div><b>Android</b><div class="note">Chrome → menú ⋮ → Instalar app.</div></div><div><b>iPhone</b><div class="note">Abre en Safari → Compartir → Añadir a pantalla de inicio.</div></div><div><b>PC</b><div class="note">Chrome o Edge → icono de instalar en la barra de direcciones.</div></div></div><div class="row" style="margin-top:12px"><button class="btn p" data-act="install">Instalar ahora</button></div></div>`:""}`;
 }
 function dismissed(){try{return new Set(JSON.parse(localStorage.getItem("tp_dis")||"[]"))}catch(e){return new Set()}}
 function saveDis(s){try{localStorage.setItem("tp_dis",JSON.stringify([...s].slice(-300)))}catch(e){}}
@@ -495,6 +495,131 @@ function render(force){
 function go(v){view=v;render(true);window.scrollTo(0,0)}
 </script>
 <script>
+/* Impresión directa: ESC/POS por Bluetooth BLE, USB/serie (PC) o RawBT (Android) */
+const MAP={"á":0xA0,"é":0x82,"í":0xA1,"ó":0xA2,"ú":0xA3,"ñ":0xA4,"Ñ":0xA5,"¿":0xA8,"¡":0xAD,"Á":0xB5,"É":0x90,"Í":0xD6,"Ó":0xE0,"Ú":0xE9,"ü":0x81,"Ü":0x9A,"·":0xFA,"—":0x2D,"–":0x2D,"“":0x22,"”":0x22,"’":0x27};
+const strip=s=>String(s).normalize("NFD").replace(/[̀-ͯ]/g,"");
+function encText(str){
+  const ascii=cfg().enc==="ascii",t=ascii?strip(str):String(str),out=[];
+  for(const ch of t){const c=ch.charCodeAt(0);if(c>=32&&c<127||c===10)out.push(c);else if(!ascii&&MAP[ch]!==undefined)out.push(MAP[ch]);else out.push(63)}
+  return out;
+}
+function wrapTxt(s,n){const w=[];let l="";String(s).split(/\s+/).forEach(x=>{while(x.length>n){if(l){w.push(l);l=""}w.push(x.slice(0,n));x=x.slice(n)}if((l+" "+x).trim().length>n){w.push(l);l=x}else l=(l+" "+x).trim()});if(l)w.push(l);return w.length?w:[""]}
+const padLR=(a,b,n)=>{a=String(a);b=String(b);const sp=n-a.length-b.length;return sp>0?a+" ".repeat(sp)+b:a.slice(0,Math.max(0,n-b.length-1))+" "+b};
+const mny=n=>money(n).replace("C$ ","C$");
+function rasterLogo(dataUrl,maxW){
+  return new Promise(res=>{
+    const img=new Image();img.onerror=()=>res(null);
+    img.onload=()=>{
+      const w=Math.max(8,Math.floor(Math.min(maxW,img.width)/8)*8),h=Math.min(200,Math.max(1,Math.round(img.height*w/img.width)));
+      const c=document.createElement("canvas");c.width=w;c.height=h;const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,w,h);x.drawImage(img,0,0,w,h);
+      const d=x.getImageData(0,0,w,h).data,bpr=w/8,out=[0x1D,0x76,0x30,0,bpr&255,bpr>>8,h&255,h>>8];
+      for(let y=0;y<h;y++)for(let b=0;b<bpr;b++){let v=0;for(let k=0;k<8;k++){const i=((y*w)+b*8+k)*4,lum=.3*d[i]+.59*d[i+1]+.11*d[i+2];if(lum<150)v|=128>>k}out.push(v)}
+      res(out);
+    };
+    img.src=dataUrl;
+  });
+}
+async function escposSale(s,withLogo){
+  const c=cfg(),n=c.paper==="58"?32:48,o=[],raw=(...b)=>o.push(...b),T=x=>o.push(...encText(x)),L=x=>{T(x);raw(10)};
+  raw(0x1B,0x40);if(c.enc!=="ascii")raw(0x1B,0x74,19);
+  raw(0x1B,0x61,1);
+  if(withLogo&&c.logo&&c.prLogo!==false){const r=await rasterLogo(c.logo,c.paper==="58"?256:320);if(r){o.push(...r);raw(10)}}
+  raw(0x1B,0x45,1,0x1D,0x21,0x11);wrapTxt(c.name,Math.floor(n/2)).forEach(L);raw(0x1D,0x21,0,0x1B,0x45,0);
+  [c.address,c.phone?"Tel. "+c.phone:"",c.ruc?"RUC "+c.ruc:""].filter(Boolean).forEach(x=>wrapTxt(x,n).forEach(L));
+  raw(0x1B,0x61,0);L("-".repeat(n));
+  raw(0x1B,0x45,1);L("FACTURA "+s.num+(s.status==="anulada"?" (ANULADA)":""));raw(0x1B,0x45,0);
+  L(fdate(s.ts));wrapTxt("Cliente: "+s.customer.name,n).forEach(L);if(s.customer.phone)L("Tel: "+s.customer.phone);
+  L("-".repeat(n));
+  s.items.forEach(l=>{wrapTxt(l.name,n).forEach(L);L(padLR(l.qty+" x "+mny(l.price),mny(l.qty*l.price),n))});
+  L("-".repeat(n));L(padLR("Subtotal",mny(s.subtotal),n));
+  if(s.discount)L(padLR("Descuento","-"+mny(s.discount),n));if(s.tax)L(padLR("IVA "+s.taxRate+"%",mny(s.tax),n));
+  raw(0x1B,0x45,1,0x1D,0x21,0x10);L(padLR("TOTAL",mny(s.total),Math.floor(n/2)));raw(0x1D,0x21,0,0x1B,0x45,0);
+  L("Pago: "+s.method);L("-".repeat(n));
+  raw(0x1B,0x61,1);wrapTxt(c.footer,n).forEach(L);raw(0x1B,0x45,1);L("Gracias por su compra!");raw(0x1B,0x45,0);
+  raw(0x1B,0x64,4);if(c.paper!=="58")raw(0x1D,0x56,66,0);
+  return new Uint8Array(o);
+}
+function escposTest(){
+  const n=cfg().paper==="58"?32:48,o=[0x1B,0x40];if(cfg().enc!=="ascii")o.push(0x1B,0x74,19);
+  o.push(0x1B,0x61,1,...encText("PRUEBA DE IMPRESION\n"),0x1B,0x61,0,...encText("-".repeat(n)+"\nAcentos: á é í ó ú ñ Ñ ¿? ¡!\nImpresora conectada con Taller Pro.\n"+"-".repeat(n)+"\n"),0x1B,0x64,4);
+  return new Uint8Array(o);
+}
+</script>
+<script>
+const PR={dev:null,chr:null,port:null,type:"",name:""};
+const BLE_SVC=["000018f0-0000-1000-8000-00805f9b34fb","0000ff00-0000-1000-8000-00805f9b34fb","0000fff0-0000-1000-8000-00805f9b34fb","0000ffe0-0000-1000-8000-00805f9b34fb","0000ffe5-0000-1000-8000-00805f9b34fb","0000ae30-0000-1000-8000-00805f9b34fb","0000fee7-0000-1000-8000-00805f9b34fb","e7810a71-73ae-499d-8c15-faa9aef0c3f2","49535343-fe7d-4ae5-8fa9-9fafd205e455","00001800-0000-1000-8000-00805f9b34fb"];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const prReady=()=>(PR.type==="ble"&&PR.dev&&PR.dev.gatt.connected&&PR.chr)||(PR.type==="serial"&&PR.port&&PR.port.writable);
+const isAndroid=()=>/Android/i.test(navigator.userAgent);
+function prUI(){if(view==="aj")render(true)}
+async function bleLink(dev){
+  const srv=await dev.gatt.connect(),svcs=await srv.getPrimaryServices();let chr=null;
+  for(const s of svcs){for(const c of await s.getCharacteristics()){if(c.properties.write||c.properties.writeWithoutResponse){chr=c;break}}if(chr)break}
+  if(!chr){try{dev.gatt.disconnect()}catch(e){}throw new Error("Esa impresora no expone un canal de escritura Bluetooth LE. Puede ser un modelo Bluetooth clásico.")}
+  PR.dev=dev;PR.chr=chr;PR.type="ble";PR.name=dev.name||"Impresora";
+  dev.addEventListener("gattserverdisconnected",()=>{PR.chr=null;prUI()});
+  try{localStorage.setItem("tp_printer",PR.name)}catch(e){}
+}
+async function prConnectBle(){
+  if(!navigator.bluetooth)throw new Error("Este navegador no permite Bluetooth. Usa Chrome en Android o PC.");
+  const dev=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:BLE_SVC});
+  await bleLink(dev);
+}
+async function prConnectSerial(){
+  if(!navigator.serial)throw new Error("Este navegador no permite conexión serie/USB. Usa Chrome o Edge en PC.");
+  const port=await navigator.serial.requestPort();await port.open({baudRate:+cfg().baud||9600});
+  PR.port=port;PR.type="serial";PR.name="Puerto serie / USB";prUI();
+}
+async function prEnsure(){
+  if(prReady())return;
+  if(PR.type==="ble"&&PR.dev){await bleLink(PR.dev);return}
+  if(navigator.bluetooth)await prConnectBle();else if(navigator.serial)await prConnectSerial();
+  else throw new Error("Este navegador no permite conectar impresoras. En Android usa Chrome; en iPhone, el navegador Bluefy.");
+}
+async function prWrite(bytes){
+  if(PR.type==="serial"){const w=PR.port.writable.getWriter();try{await w.write(bytes)}finally{w.releaseLock()}return}
+  const nr=PR.chr.properties.writeWithoutResponse&&!PR.chr.properties.write;
+  for(let i=0;i<bytes.length;i+=100){const p=bytes.slice(i,i+100);if(nr)await PR.chr.writeValueWithoutResponse(p);else await PR.chr.writeValue(p);await sleep(20)}
+}
+function b64(bytes){let s="";for(let i=0;i<bytes.length;i+=8192)s+=String.fromCharCode.apply(null,bytes.subarray(i,i+8192));return btoa(s)}
+function rawbt(bytes){location.href="intent:base64,"+b64(bytes)+"#Intent;scheme=rawbt;launchFlags=0x10000000;package=ru.a402d.rawbtprinter;end;"}
+async function printBytes(make,quiet){
+  try{
+    if(cfg().prmethod==="rawbt"){rawbt(await make(false));toast("Enviando a RawBT…");return}
+    await prEnsure();await prWrite(await make(true));if(!quiet)toast("Enviado a la impresora");
+  }catch(e){
+    if(e&&e.name==="NotFoundError")return;
+    toast("No se pudo imprimir: "+(e&&e.message?e.message:e)+(PR.type?" Revisa que esté encendida y cerca.":""));
+  }
+}
+const printDirect=(id,quiet)=>S.sales[id]&&printBytes(w=>escposSale(S.sales[id],w),quiet);
+const printTest=()=>printBytes(async()=>escposTest());
+async function prDisconnect(){
+  try{if(PR.type==="ble"&&PR.dev.gatt.connected)PR.dev.gatt.disconnect();if(PR.type==="serial")await PR.port.close()}catch(e){}
+  PR.dev=PR.chr=PR.port=null;PR.type="";PR.name="";toast("Impresora desconectada");prUI();
+}
+async function prAuto(){
+  try{if(!navigator.bluetooth||!navigator.bluetooth.getDevices)return;
+    const saved=localStorage.getItem("tp_printer");if(!saved)return;
+    const d=(await navigator.bluetooth.getDevices()).find(x=>x.name===saved);if(!d)return;
+    await Promise.race([bleLink(d),sleep(8000).then(()=>{throw 0})]);prUI();
+  }catch(e){}
+}
+function printerCard(){
+  const c=cfg(),ok=prReady(),bt=!!navigator.bluetooth,se=!!navigator.serial;
+  return `<div class="card" style="margin-top:14px"><h2>Impresora térmica</h2>
+  <div class="row" style="margin-bottom:12px"><span class="pill ${ok?"good":"mut"}">${ok?"Conectada: "+esc(PR.name):"Sin conectar"}</span>${PR.type==="ble"&&!ok&&PR.dev?`<span class="note">Se perdió la conexión. Enciende la impresora y vuelve a conectar.</span>`:""}</div>
+  <div class="row"><button type="button" class="btn p" data-act="prble" ${bt?"":"disabled"}>Conectar por Bluetooth</button>${se?`<button type="button" class="btn" data-act="prser">Conectar por USB / serie</button>`:""}<button type="button" class="btn" data-act="prtest">Imprimir prueba</button>${ok?`<button type="button" class="btn d" data-act="prdis">Desconectar</button>`:""}</div>
+  ${bt?"":`<p class="note" style="margin:10px 0 0">Este navegador no permite Bluetooth. En Android usa Chrome; en iPhone, el navegador Bluefy; en PC, Chrome o Edge.</p>`}
+  <div class="f" style="margin-top:14px"><div><label for="pr_m">Cómo imprimir directo</label><select id="pr_m"><option value="direct" ${c.prmethod!=="rawbt"?"selected":""}>Bluetooth LE o USB (desde la app)</option><option value="rawbt" ${c.prmethod==="rawbt"?"selected":""}>RawBT (Android, Bluetooth clásico)</option></select></div>
+  <div><label for="pr_e">Acentos y ñ</label><select id="pr_e"><option value="cp858" ${c.enc!=="ascii"?"selected":""}>Imprimir con acentos</option><option value="ascii" ${c.enc==="ascii"?"selected":""}>Sin acentos (más compatible)</option></select></div>
+  <div><label for="pr_b">Velocidad USB / serie</label><select id="pr_b">${[9600,19200,38400,115200].map(v=>`<option ${+c.baud===v?"selected":""}>${v}</option>`).join("")}</select></div></div>
+  <div class="row" style="margin-top:12px"><label style="display:flex;gap:8px;align-items:center;margin:0;font-weight:500;color:var(--fg)"><input id="pr_l" type="checkbox" style="width:auto" ${c.prLogo!==false?"checked":""}>Imprimir el logo en el ticket</label>
+  <label style="display:flex;gap:8px;align-items:center;margin:0;font-weight:500;color:var(--fg)"><input id="pr_a" type="checkbox" style="width:auto" ${c.autoprint?"checked":""}>Imprimir solo al cobrar</label></div>
+  <p class="note" style="margin:12px 0 0">Bluetooth LE funciona con impresoras que lo soportan (muchas de 58 mm). Si tu impresora no aparece, probablemente es Bluetooth clásico: instala la app RawBT en Android y elige RawBT arriba.</p></div>`;
+}
+</script>
+<script>
 document.addEventListener("click",async e=>{
   const n=e.target.closest(".nav");if(n){go(n.dataset.v);return}
   const g=e.target.closest("[data-go]");if(g){go(g.dataset.go);return}
@@ -520,6 +645,11 @@ document.addEventListener("click",async e=>{
     case"copyinv":try{await navigator.clipboard.writeText(invText(S.sales[id]));toast("Factura copiada")}catch(x){toast("No se pudo copiar")}break;
     case"dorestore":if(ui.pending&&mode!=="db"){COLS.forEach(c=>S[c]=ui.pending[c]||{});S.settings=ui.pending.settings||{};saveLocal();ui.pending=null;closeModal();render(true);toast("Respaldo restaurado")}break;
     case"upd":{const r=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();if(!r){toast("Las actualizaciones solo funcionan en la app instalada");break}toast("Buscando actualización…");try{await r.update()}catch(x){toast("Sin conexión para actualizar");break}setTimeout(()=>{if(!r.installing&&!r.waiting)toast("Ya tienes la última versión")},2500);break}
+    case"prble":try{await prConnectBle();toast("Impresora conectada");prUI()}catch(x){if(!(x&&x.name==="NotFoundError"))toast(x.message||"No se pudo conectar")}break;
+    case"prser":try{await prConnectSerial();toast("Puerto conectado")}catch(x){if(!(x&&x.name==="NotFoundError"))toast(x.message||"No se pudo conectar")}break;
+    case"prtest":printTest();break;
+    case"prdis":prDisconnect();break;
+    case"prdirect":printDirect(id);break;
     case"fmt":showInvoice(id,b.dataset.f);break;
     case"prt":printDoc(ui.fmt,id);break;
     case"dlk":dlDoc(ui.fmt,id);break;
@@ -547,6 +677,8 @@ document.addEventListener("input",e=>{
   else if(["cn","cp","cm"].includes(id))syncCust();
 });
 document.addEventListener("change",async e=>{
+  const pm={pr_m:["prmethod",x=>x.value],pr_e:["enc",x=>x.value],pr_b:["baud",x=>+x.value],pr_l:["prLogo",x=>x.checked],pr_a:["autoprint",x=>x.checked]}[e.target.id];
+  if(pm){await putSettings({[pm[0]]:pm[1](e.target)});toast("Guardado");return}
   if(e.target.id==="rst"&&e.target.files[0]){
     try{const d=JSON.parse(await e.target.files[0].text());if(!d||typeof d.products!=="object"||typeof d.sales!=="object")throw 0;ui.pending=d;
       openModal(`<h2>Restaurar respaldo</h2><p>Se reemplazarán los datos de este dispositivo por el respaldo: <b>${Object.keys(d.products).length}</b> productos, <b>${Object.keys(d.sales).length}</b> facturas y <b>${Object.keys(d.repairs||{}).length}</b> reparaciones.</p><p class="note">Los datos actuales se perderán. Descarga un respaldo antes si no estás seguro.</p><div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-act="close">Cancelar</button><button class="btn p" data-act="dorestore">Restaurar</button></div>`)}
@@ -557,11 +689,11 @@ document.addEventListener("change",async e=>{
 });
 addEventListener("beforeinstallprompt",e=>{e.preventDefault();window.deferredInstall=e;$("#installBtn").hidden=false});
 addEventListener("appinstalled",()=>{window.deferredInstall=null;$("#installBtn").hidden=true;toast("App instalada")});
-(async()=>{render(true);await initStore();render(true);setTimeout(()=>{ui.seen=new Set(alerts().map(a=>a.key));ui.armed=true},1800)})();
+(async()=>{render(true);await initStore();render(true);if(CAN_PRINT)prAuto();setTimeout(()=>{ui.seen=new Set(alerts().map(a=>a.key));ui.armed=true},1800)})();
 </script>
 
 <script>
-const APP_VERSION="2.1 · 18 nov 2026";
+const APP_VERSION="3.0 · 18 nov 2026";
 if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){
   let had=!!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener("controllerchange",()=>{

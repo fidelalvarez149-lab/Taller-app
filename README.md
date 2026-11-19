@@ -23,3 +23,9 @@ Después de abrirla una vez con internet, la app queda guardada en el dispositiv
 
 ## Actualizaciones
 Al abrir la app con internet, busca sola la versión nueva y la aplica (se recarga una vez, sin perder datos). Sin internet usa la copia guardada. Para actualizar el sitio: reemplaza los archivos en GitHub; en Ajustes también hay "Buscar actualización".
+
+## Impresión directa en impresora térmica
+Ajustes → Impresora térmica → Conectar por Bluetooth, elige tu impresora y toca Imprimir prueba. Después, en cada factura aparece "Imprimir directo". Opción "Imprimir solo al cobrar" para que salga el ticket al terminar cada venta.
+- Android y PC: Chrome o Edge, impresoras Bluetooth LE. En PC también por USB/serie.
+- iPhone: Safari no permite Bluetooth; usa el navegador Bluefy.
+- Impresoras de Bluetooth clásico (muchas de 58 mm): en Android instala RawBT y elige RawBT en "Cómo imprimir directo".
