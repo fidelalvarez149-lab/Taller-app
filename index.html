@@ -152,7 +152,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 const COLS=["products","sales","repairs","moves"];
 const S={products:{},sales:{},repairs:{},moves:{},settings:{}};
 const DEF={name:"Mi Taller",phone:"",address:"",ruc:"",tax:0,next:1,nextRep:1,footer:"Gracias por su preferencia. Garantía de reparación: 30 días.",lowDefault:3,paper:"80",logo:"",enc:"cp858",prLogo:true,autoprint:false,baud:9600,prmethod:"direct"};
-let DB=null,mode="local",view="panel",ui={};
+let DB=null,FS=false,mode="local",view="panel",ui={};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const cfg=()=>({...DEF,...S.settings});
@@ -162,24 +162,30 @@ const today=()=>new Date().toISOString().slice(0,10);
 const fdate=iso=>new Date(iso).toLocaleString("es-NI",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
 const list=c=>Object.entries(S[c]).map(([id,v])=>({...v,id}));
 function toast(t){const e=$("#toast");e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,2600)}
-function updNet(){const n=$("#syncNote");if(!n)return;n.textContent=mode==="db"?(navigator.onLine?"Datos guardados en la nube.":"Sin conexión con la nube."):(navigator.onLine?"Funciona sin internet. Datos en este dispositivo.":"Sin internet · todo se guarda en este dispositivo.")}
-function saveLocal(){try{localStorage.setItem("tallerpro",JSON.stringify(S))}catch(e){toast("No hay espacio para guardar. Descarga un respaldo en Ajustes.")}}
-function loadLocal(){try{const d=JSON.parse(localStorage.getItem("tallerpro")||"null");if(d)COLS.concat("settings").forEach(c=>{if(d[c])S[c]=d[c]})}catch(e){}}
+function updNet(){const n=$("#syncNote");if(!n)return;const on=navigator.onLine;n.textContent=mode==="db"?(on?"Datos guardados en la nube.":"Sin conexión con la nube."):mode==="cloud"?(on?"Sincronizado con la nube en tiempo real.":"Sin internet · se sincronizará al volver."):CS&&CS.state==="login"?"Nube: falta iniciar sesión.":CS&&CS.state==="error"?"Nube: sin conexión. Usando datos de este dispositivo.":(on?"Funciona sin internet. Datos en este dispositivo.":"Sin internet · todo se guarda en este dispositivo.")}
+let _sv;function saveLocalSoon(){clearTimeout(_sv);_sv=setTimeout(saveLocal,400)}
+const lsKey=()=>cloudCfg()?"tallerpro_cloud":"tallerpro";
+function saveLocal(){try{localStorage.setItem(lsKey(),JSON.stringify(S))}catch(e){toast("No hay espacio para guardar. Descarga un respaldo en Ajustes.")}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(lsKey())||"null");if(d)COLS.concat("settings").forEach(c=>{if(d[c])S[c]=d[c]})}catch(e){}}
 async function put(col,id,data){
   S[col][id]=data;
+  if(FS){DB.collection(col).doc(id).set(clean(data)).catch(e=>toast("No se pudo sincronizar: "+(e.code||"error")));saveLocalSoon();return}
   if(DB){try{await DB.collection(col).doc(id).set(data)}catch(e){toast("No se pudo guardar: "+(e.code||"error"))}}else saveLocal();
 }
 async function del(col,id){
   delete S[col][id];
+  if(FS){DB.collection(col).doc(id).delete().catch(()=>{});saveLocalSoon();return}
   if(DB){try{await DB.collection(col).doc(id).delete()}catch(e){toast("No se pudo borrar")}}else saveLocal();
 }
 async function putSettings(patch){
   S.settings={...S.settings,...patch};
+  if(FS){DB.doc("config/main").set(clean(S.settings)).catch(()=>{});saveLocalSoon();return}
   if(DB){try{await DB.doc("config/main").set(S.settings)}catch(e){toast("No se pudo guardar ajustes")}}else saveLocal();
 }
 async function initStore(){
   loadLocal();
   try{DB=window.claude?await window.claude.use("db"):null}catch(e){DB=null}
+  if(!DB&&cloudCfg()){await initCloud();return}
   if(!DB){updNet();try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}return}
   mode="db";S.products={};S.sales={};S.repairs={};S.moves={};S.settings={};
   updNet();
@@ -198,7 +204,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
 async function adjustStock(pid,delta,type,ref){
   const p=S.products[pid];if(!p)return;
   const after=Math.max(0,(Number(p.stock)||0)+delta);
-  await put("products",pid,{...p,stock:after});
+  if(FS){S.products[pid]={...p,stock:after};DB.collection("products").doc(pid).update({stock:firebase.firestore.FieldValue.increment(after-(Number(p.stock)||0))}).catch(()=>{});saveLocalSoon()}else await put("products",pid,{...p,stock:after});
   await put("moves",uid(),{ts:new Date().toISOString(),pid,name:p.name,type,qty:delta,after,ref:ref||""});
 }
 const stState=p=>p.stock<=0?["bad","Agotado"]:p.stock<=(Number(p.min)||0)?["warn","Stock bajo"]:["good","Disponible"];
@@ -290,9 +296,8 @@ function syncCust(){["cn:name","cp:phone","cm:method","cd:disc"].forEach(x=>{con
 async function checkout(){
   syncCust();if(!ui.cart.length)return;
   for(const l of ui.cart){if(l.pid&&(S.products[l.pid]?.stock||0)<l.qty){toast("No hay suficiente existencia de "+l.name);return}}
-  const c=cfg(),t=cartTotals(),num="F-"+String(c.next).padStart(4,"0"),id=uid();
-  const sale={num,ts:new Date().toISOString(),customer:{name:ui.cust.name.trim()||"Consumidor final",phone:ui.cust.phone.trim()},method:ui.cust.method,items:ui.cart.map(l=>({...l})),subtotal:t.sub,discount:t.disc,taxRate:+c.tax||0,tax:t.tax,total:t.total,status:"emitida"};
-  await putSettings({next:c.next+1});
+  const c=cfg(),t=cartTotals(),num=nextNum(mySerie(),"sales"),id=uid();
+  const sale={num,ts:new Date().toISOString(),customer:{name:ui.cust.name.trim()||"Consumidor final",phone:ui.cust.phone.trim()},method:ui.cust.method,items:ui.cart.map(l=>({...l})),subtotal:t.sub,discount:t.disc,taxRate:+c.tax||0,tax:t.tax,total:t.total,status:"emitida",device:myDevice()};
   await put("sales",id,sale);
   for(const l of sale.items){if(l.pid)await adjustStock(l.pid,-l.qty,"venta","Factura "+num)}
   ui.cart=[];ui.cust={name:"",phone:"",method:"Efectivo",disc:0,note:""};
@@ -340,7 +345,7 @@ function vFac(){
   return `<div class="top"><div><h1>Facturas</h1><p>Registro de todo lo vendido.</p></div><button class="btn" data-act="csvsales">Exportar CSV</button></div>
   <div class="grid kpis"><div class="kpi"><span>Facturas emitidas</span><b>${ok.length}</b></div><div class="kpi"><span>Total facturado</span><b>${money(ok.reduce((s,x)=>s+x.total,0))}</b></div></div>
   <div class="card"><input id="fq" placeholder="Buscar por número, cliente o teléfono" value="${esc(ui.fq||"")}" style="max-width:340px;margin-bottom:12px"><div class="tw"><table><thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Pago</th><th class="n">Total</th><th>Estado</th><th></th></tr></thead><tbody>
-  ${ss.map(s=>`<tr><td class="mono">${esc(s.num)}</td><td>${fdate(s.ts)}</td><td>${esc(s.customer.name)}</td><td>${esc(s.method)}</td><td class="n"><b>${money(s.total)}</b></td><td><span class="pill ${s.status==="anulada"?"bad":"good"}">${s.status==="anulada"?"Anulada":"Emitida"}</span></td><td class="n"><button class="btn s" data-act="seeinv" data-id="${s.id}">Imprimir</button> <button class="btn s" data-act="seeinv" data-id="${s.id}">Ver</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">Aún no hay facturas.</td></tr>`}</tbody></table></div></div>`;
+  ${ss.map(s=>`<tr><td class="mono">${esc(s.num)}</td><td>${fdate(s.ts)}</td><td>${esc(s.customer.name)}${s.device?`<div class="note">${esc(s.device)}</div>`:""}</td><td>${esc(s.method)}</td><td class="n"><b>${money(s.total)}</b></td><td><span class="pill ${s.status==="anulada"?"bad":"good"}">${s.status==="anulada"?"Anulada":"Emitida"}</span></td><td class="n"><button class="btn s" data-act="seeinv" data-id="${s.id}">Imprimir</button> <button class="btn s" data-act="seeinv" data-id="${s.id}">Ver</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">Aún no hay facturas.</td></tr>`}</tbody></table></div></div>`;
 }
 
 function readLogo(file){return new Promise((res,rej)=>{const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{const k=Math.min(1,360/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);res(c.toDataURL("image/jpeg",.85))};img.onerror=()=>rej(new Error("img"));img.src=url})}
@@ -399,8 +404,7 @@ function repForm(id){
   <div class="row" style="justify-content:space-between"><div class="row">${id&&r.saleId?`<button type="button" class="btn" data-act="seeinv" data-id="${r.saleId}">Ver factura</button>`:id?`<button type="button" class="btn" data-act="billr" data-id="${id}">Generar factura</button>`:""}</div>
   <div class="row"><button type="button" class="btn" data-act="close">Cerrar</button><button class="btn p">Guardar</button></div></div></form>`);
   $("#rf").onsubmit=async e=>{e.preventDefault();syncRep();
-    const c=cfg(),rid=id||uid(),base=id?S.repairs[id]:{num:"R-"+String(c.nextRep).padStart(4,"0"),ts:new Date().toISOString(),parts:[]};
-    if(!id)await putSettings({nextRep:c.nextRep+1});
+    const c=cfg(),rid=id||uid(),base=id?S.repairs[id]:{num:nextNum(repPrefix(),"repairs"),ts:new Date().toISOString(),parts:[]};
     await put("repairs",rid,{...base,...ui.rdraft});closeModal();toast("Orden guardada");};
 }
 function syncRep(){ui.rdraft={customer:{name:$("#rn").value.trim(),phone:$("#rp").value.trim()},device:$("#rd").value.trim(),imei:$("#ri").value.trim(),issue:$("#ra").value.trim(),labor:+$("#rl").value||0,deposit:+$("#rdp").value||0,status:$("#rs").value}}
@@ -421,9 +425,8 @@ async function billRepair(id){
   syncRep();const r={...S.repairs[id],...ui.rdraft},c=cfg();
   const items=[...(r.labor?[{name:"Mano de obra: "+r.device,qty:1,price:r.labor,cost:0}]:[]),...(r.parts||[]).map(p=>({name:p.name,qty:p.qty,price:p.price,cost:p.cost}))];
   if(!items.length){toast("Agrega mano de obra o repuestos");return}
-  const sub=items.reduce((s,l)=>s+l.qty*l.price,0),tax=sub*(+c.tax||0)/100,sid=uid(),num="F-"+String(c.next).padStart(4,"0");
-  await putSettings({next:c.next+1});
-  await put("sales",sid,{num,ts:new Date().toISOString(),customer:{...r.customer},method:"Efectivo",items,subtotal:sub,discount:0,taxRate:+c.tax||0,tax,total:sub+tax,status:"emitida",repairNum:r.num});
+  const sub=items.reduce((s,l)=>s+l.qty*l.price,0),tax=sub*(+c.tax||0)/100,sid=uid(),num=nextNum(mySerie(),"sales");
+  await put("sales",sid,{num,ts:new Date().toISOString(),customer:{...r.customer},method:"Efectivo",items,subtotal:sub,discount:0,taxRate:+c.tax||0,tax,total:sub+tax,status:"emitida",device:myDevice(),repairNum:r.num});
   await put("repairs",id,{...r,saleId:sid,status:r.status==="Listo"?"Entregado":r.status});closeModal();toast("Factura generada");showInvoice(sid);
 }
 </script>
@@ -454,9 +457,9 @@ function vAj(){
   <div><label for="aa">Dirección</label><input id="aa" value="${esc(c.address)}"></div>
   <div class="f"><div><label for="alg">Logo del negocio</label><div class="row"><img id="logoPrev" alt="Logo" src="${c.logo||""}" style="height:52px;max-width:120px;border-radius:6px;border:1px solid var(--line);background:#fff;${c.logo?"":"display:none"}"><input id="alg" type="file" accept="image/*" style="flex:1;min-width:150px">${c.logo?`<button type="button" class="btn s d" data-act="rmlogo">Quitar</button>`:""}</div><div class="note" style="margin-top:4px">Aparece en facturas y tickets. Se ajusta solo a un tamaño liviano.</div></div>
   <div><label for="apw">Ancho del papel del ticket</label><select id="apw"><option value="80" ${c.paper==="80"?"selected":""}>80 mm (estándar)</option><option value="58" ${c.paper==="58"?"selected":""}>58 mm (pequeña)</option></select></div></div>
-  <div class="f"><div><label for="at">IVA (%). Pon 0 si no lo cobras</label><input id="at" type="number" min="0" step="0.01" value="${c.tax}"></div><div><label for="al">Aviso de stock bajo por defecto</label><input id="al" type="number" min="0" value="${c.lowDefault}"></div><div><label for="anx">Próxima factura número</label><input id="anx" type="number" min="1" value="${c.next}"></div></div>
+  <div class="f"><div><label for="at">IVA (%). Pon 0 si no lo cobras</label><input id="at" type="number" min="0" step="0.01" value="${c.tax}"></div><div><label for="al">Aviso de stock bajo por defecto</label><input id="al" type="number" min="0" value="${c.lowDefault}"></div></div>
   <div><label for="af2">Mensaje al pie de la factura</label><textarea id="af2" rows="2">${esc(c.footer)}</textarea></div>
-  <div class="row" style="justify-content:space-between"><button type="button" class="btn" data-act="backup">Descargar respaldo (JSON)</button><button class="btn p">Guardar ajustes</button></div></form></div>${CAN_PRINT?printerCard():""}${mode!=="db"?`<div class="card" style="margin-top:14px"><h2>Respaldo y otro dispositivo</h2><p class="note" style="margin:0 0 10px">Tus datos viven en este dispositivo y funcionan sin internet. Descarga un respaldo seguido, y restáuralo aquí si cambias de teléfono o computadora.</p><label for="rst">Restaurar desde un respaldo (.json)</label><input id="rst" type="file" accept=".json,application/json">${CAN_PRINT?`<div class="row" style="margin-top:14px;justify-content:space-between"><span class="note">Versión ${typeof APP_VERSION!=="undefined"?APP_VERSION:""}. Se actualiza sola al abrir con internet.</span><button type="button" class="btn s" data-act="upd">Buscar actualización</button></div>`:""}</div>`:""}${CAN_PRINT&&!matchMedia("(display-mode: standalone)").matches?`<div class="card" style="margin-top:14px"><h2>Instalar la app</h2><div class="f"><div><b>Android</b><div class="note">Chrome → menú ⋮ → Instalar app.</div></div><div><b>iPhone</b><div class="note">Abre en Safari → Compartir → Añadir a pantalla de inicio.</div></div><div><b>PC</b><div class="note">Chrome o Edge → icono de instalar en la barra de direcciones.</div></div></div><div class="row" style="margin-top:12px"><button class="btn p" data-act="install">Instalar ahora</button></div></div>`:""}`;
+  <div class="row" style="justify-content:space-between"><button type="button" class="btn" data-act="backup">Descargar respaldo (JSON)</button><button class="btn p">Guardar ajustes</button></div></form></div>${CAN_PRINT?cloudCard():""}${CAN_PRINT?printerCard():""}${mode!=="db"?`<div class="card" style="margin-top:14px"><h2>Respaldo y otro dispositivo</h2><p class="note" style="margin:0 0 10px">Tus datos viven en este dispositivo y funcionan sin internet. Descarga un respaldo seguido, y restáuralo aquí si cambias de teléfono o computadora.</p>${mode==="local"?`<label for="rst">Restaurar desde un respaldo (.json)</label><input id="rst" type="file" accept=".json,application/json">`:""}${CAN_PRINT?`<div class="row" style="margin-top:14px;justify-content:space-between"><span class="note">Versión ${typeof APP_VERSION!=="undefined"?APP_VERSION:""}. Se actualiza sola al abrir con internet.</span><button type="button" class="btn s" data-act="upd">Buscar actualización</button></div>`:""}</div>`:""}${CAN_PRINT&&!matchMedia("(display-mode: standalone)").matches?`<div class="card" style="margin-top:14px"><h2>Instalar la app</h2><div class="f"><div><b>Android</b><div class="note">Chrome → menú ⋮ → Instalar app.</div></div><div><b>iPhone</b><div class="note">Abre en Safari → Compartir → Añadir a pantalla de inicio.</div></div><div><b>PC</b><div class="note">Chrome o Edge → icono de instalar en la barra de direcciones.</div></div></div><div class="row" style="margin-top:12px"><button class="btn p" data-act="install">Instalar ahora</button></div></div>`:""}`;
 }
 function dismissed(){try{return new Set(JSON.parse(localStorage.getItem("tp_dis")||"[]"))}catch(e){return new Set()}}
 function saveDis(s){try{localStorage.setItem("tp_dis",JSON.stringify([...s].slice(-300)))}catch(e){}}
@@ -468,6 +471,7 @@ function alerts(){
     else if(r.status!=="Entregado"&&now-new Date(r.ts)>5*864e5)out.push({key:"a:"+r.id,lvl:"warn",title:"Más de 5 días en taller: "+r.device,text:r.customer.name+" · orden "+r.num+" · "+r.status,rep:r.id});
     if(r.status==="Entregado"&&!r.saleId)out.push({key:"f:"+r.id,lvl:"warn",title:"Entregado sin facturar: "+r.device,text:"Orden "+r.num+" de "+r.customer.name,rep:r.id});
   });
+  list("sales").forEach(s=>{if(s.device&&s.device!==myDevice()&&s.status!=="anulada"&&now-new Date(s.ts)<864e5)out.push({key:"v:"+s.id,lvl:"good",title:"Nueva venta "+s.num+" · "+money(s.total),text:"Registrada en "+s.device+" · "+s.customer.name,go:"fac"})});
   try{if(mode!=="db"&&(list("sales").length||list("products").length)){const lb=+(localStorage.getItem("tp_backup")||0);if(now-lb>7*864e5)out.push({key:"b:"+Math.floor(now/(7*864e5)),lvl:"warn",title:"Haz un respaldo de tus datos",text:lb?"El último respaldo tiene más de 7 días.":"Aún no has descargado ningún respaldo.",go:"aj"})}}catch(e){}
   return out.filter(a=>!dis.has(a.key));
 }
@@ -490,7 +494,7 @@ function render(force){
   $("#main").innerHTML=VIEWS[view]();
   $("#brandName").textContent=cfg().name;updateBell();
   document.querySelectorAll(".nav").forEach(b=>b.dataset.v===view?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
-  const f=$("#af");if(f)f.onsubmit=async e=>{e.preventDefault();await putSettings({name:$("#an").value.trim()||"Mi Taller",phone:$("#aph").value.trim(),ruc:$("#ar").value.trim(),address:$("#aa").value.trim(),tax:+$("#at").value||0,lowDefault:parseInt($("#al").value)||0,next:parseInt($("#anx").value)||1,footer:$("#af2").value,paper:$("#apw").value});toast("Ajustes guardados");render(true)};
+  const f=$("#af");if(f)f.onsubmit=async e=>{e.preventDefault();await putSettings({name:$("#an").value.trim()||"Mi Taller",phone:$("#aph").value.trim(),ruc:$("#ar").value.trim(),address:$("#aa").value.trim(),tax:+$("#at").value||0,lowDefault:parseInt($("#al").value)||0,footer:$("#af2").value,paper:$("#apw").value});toast("Ajustes guardados");render(true)};
 }
 function go(v){view=v;render(true);window.scrollTo(0,0)}
 </script>
@@ -620,6 +624,99 @@ function printerCard(){
 }
 </script>
 <script>
+/* Nube: Firebase Firestore (tiempo real + funciona sin internet y se pone al día al volver la conexión) */
+const CK="tp_cloud",SDK="https://www.gstatic.com/firebasejs/10.12.2/";
+const cloudCfg=()=>{try{return JSON.parse(localStorage.getItem(CK)||"null")}catch(e){return null}};
+const myDevice=()=>{let d=null;try{d=localStorage.getItem("tp_device");if(!d){d="Equipo-"+Math.random().toString(36).slice(2,6).toUpperCase();localStorage.setItem("tp_device",d)}}catch(e){}return d||"Equipo"};
+const mySerie=()=>{try{return localStorage.getItem("tp_serie")||"F"}catch(e){return"F"}};
+const repPrefix=()=>mySerie()==="F"?"R":"R"+mySerie();
+function nextNum(prefix,col){
+  let m=0;const re=new RegExp("^"+prefix+"-(\\d+)$");
+  Object.values(S[col]).forEach(x=>{const r=String(x.num||"").match(re);if(r)m=Math.max(m,+r[1])});
+  return prefix+"-"+String(m+1).padStart(4,"0");
+}
+const clean=o=>JSON.parse(JSON.stringify(o));
+function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=()=>no(new Error("No se pudo cargar Firebase. Se necesita internet la primera vez."));document.head.appendChild(s)})}
+let CS={state:"off",msg:""};
+async function loadSdk(){if(!window.firebase)for(const f of["app","auth","firestore"])await loadScript(SDK+"firebase-"+f+"-compat.js")}
+function parseCfg(txt){
+  const m=String(txt).match(/\{[\s\S]*\}/);if(!m)throw new Error("No encontré la configuración de Firebase.");
+  let o;try{o=JSON.parse(m[0])}catch(e){o=JSON.parse(m[0].replace(/([{,]\s*)([A-Za-z_]\w*)\s*:/g,'$1"$2":').replace(/'/g,'"').replace(/,\s*}/g,"}"))}
+  if(!o.apiKey||!o.projectId)throw new Error("Falta apiKey o projectId en la configuración.");return o;
+}
+async function initCloud(){
+  const c=cloudCfg();CS={state:"loading",msg:""};
+  try{
+    await loadSdk();
+    if(!firebase.apps.length)firebase.initializeApp(c.config);
+    const user=await new Promise(res=>{const u=firebase.auth().onAuthStateChanged(x=>{u();res(x)})});
+    if(!user){CS={state:"login",msg:"Falta iniciar sesión."};updNet();return}
+    const fs=firebase.firestore();
+    try{await fs.enablePersistence({synchronizeTabs:true})}catch(e){}
+    DB={collection:n=>fs.collection("negocios/"+c.code+"/"+n),doc:p=>fs.doc("negocios/"+c.code+"/"+p)};
+    FS=true;mode="cloud";CS={state:"ok",msg:""};
+    const first=col=>{if(ui.seen)alerts().forEach(a=>ui.seen.add(a.key));ui["fs_"+col]=1};
+    COLS.forEach(col=>DB.collection(col).onSnapshot(sn=>{
+      if(sn.metadata.fromCache&&sn.empty&&Object.keys(S[col]).length)return;
+      S[col]={};sn.docs.forEach(d=>S[col][d.id]=d.data());
+      if(!sn.metadata.fromCache&&!ui["fs_"+col])first(col);
+      saveLocalSoon();render();
+    },e=>toast("Error de sincronización: "+(e.code||e.message))));
+    DB.doc("config/main").onSnapshot(d=>{S.settings=d.exists?d.data():{};saveLocalSoon();render()},()=>{});
+    updNet();prUI();
+  }catch(e){CS={state:"error",msg:e.message||String(e)};updNet();prUI()}
+}
+async function cloudConnect(){
+  const g=id=>$("#"+id).value.trim();
+  try{
+    const config=parseCfg($("#cl_cfg").value),code=(g("cl_code")||"taller").replace(/[^A-Za-z0-9_-]/g,"").slice(0,40)||"taller",email=g("cl_mail"),pass=$("#cl_pass").value;
+    if(!email||!pass)throw new Error("Escribe el correo y la contraseña.");
+    toast("Conectando…");await loadSdk();
+    if(!firebase.apps.length)firebase.initializeApp(config);
+    await firebase.auth().signInWithEmailAndPassword(email,pass);
+    localStorage.setItem(CK,JSON.stringify({config,code,email}));
+    toast("Conectado. Cargando datos…");setTimeout(()=>location.reload(),700);
+  }catch(e){
+    const m={"auth/invalid-credential":"Correo o contraseña incorrectos.","auth/wrong-password":"Correo o contraseña incorrectos.","auth/user-not-found":"Ese correo no existe en Firebase.","auth/network-request-failed":"Sin internet para iniciar sesión.","auth/invalid-api-key":"La configuración de Firebase no es válida."}[e.code];
+    toast(m||e.message||"No se pudo conectar");
+  }
+}
+async function cloudOff(){
+  try{if(window.firebase&&firebase.apps.length)await firebase.auth().signOut()}catch(e){}
+  try{localStorage.removeItem(CK)}catch(e){}
+  location.reload();
+}
+async function cloudUp(){
+  let src;try{src=JSON.parse(localStorage.getItem("tallerpro")||"null")}catch(e){}
+  if(!src||!(Object.keys(src.products||{}).length+Object.keys(src.sales||{}).length+Object.keys(src.repairs||{}).length)){toast("No hay datos locales para subir");return}
+  const fs=firebase.firestore();let b=fs.batch(),n=0,tot=0;
+  const flush=async()=>{if(n){await b.commit();b=fs.batch();n=0}};
+  try{
+    toast("Subiendo datos…");
+    for(const col of COLS)for(const[id,v]of Object.entries(src[col]||{})){b.set(DB.collection(col).doc(id),clean(v));tot++;if(++n>=400)await flush()}
+    if(src.settings){b.set(DB.doc("config/main"),clean(src.settings));n++}
+    await flush();toast("Se subieron "+tot+" registros a la nube");
+  }catch(e){toast("No se pudo subir: "+(e.code||e.message))}
+}
+</script>
+<script>
+function cloudCard(){
+  const cc=cloudCfg(),st=CS.state,on=st==="ok";
+  const pill=on?`<span class="pill good">Sincronizado en tiempo real</span>`:st==="login"?`<span class="pill warn">Falta iniciar sesión</span>`:st==="loading"?`<span class="pill mut">Conectando…</span>`:st==="error"?`<span class="pill bad">Error</span>`:`<span class="pill mut">No conectada · solo este dispositivo</span>`;
+  const dev=`<div class="f" style="margin-top:14px"><div><label for="cl_dev">Nombre de este dispositivo</label><input id="cl_dev" value="${esc(myDevice())}" placeholder="Tienda, Gregory…"></div>
+  <div><label for="cl_ser">Serie de facturas (única por dispositivo)</label><input id="cl_ser" value="${esc(mySerie())}" maxlength="3" placeholder="A" style="text-transform:uppercase"></div></div>
+  <p class="note" style="margin:8px 0 0">Cada dispositivo usa su propia serie (ej. A para la tienda, B para tu teléfono) para que las facturas nunca se repitan, incluso sin internet.</p>`;
+  const body=cc?`<div class="note" style="margin-top:10px">Negocio: <b>${esc(cc.code)}</b> · Cuenta: <b>${esc(cc.email)}</b>${CS.msg?` · ${esc(CS.msg)}`:""}</div>
+  <div class="row" style="margin-top:12px">${on?`<button type="button" class="btn" data-act="cloudup">Subir los datos de este dispositivo</button>`:""}<button type="button" class="btn d" data-act="clouddis">Desconectar</button></div>
+  <p class="note" style="margin:10px 0 0">Al conectar, este dispositivo muestra los datos de la nube. Si ya tenías ventas aquí, usa “Subir los datos de este dispositivo” una sola vez, en el primer equipo.</p>`
+  :`<div style="margin-top:12px" class="grid"><div><label for="cl_cfg">Configuración de Firebase (pégala completa)</label><textarea id="cl_cfg" rows="4" placeholder="const firebaseConfig = { apiKey: &quot;…&quot;, projectId: &quot;…&quot;, … }"></textarea></div>
+  <div class="f"><div><label for="cl_code">Código del negocio</label><input id="cl_code" value="taller"></div><div><label for="cl_mail">Correo de la cuenta</label><input id="cl_mail" type="email" autocomplete="username"></div><div><label for="cl_pass">Contraseña</label><input id="cl_pass" type="password" autocomplete="current-password"></div></div>
+  <div class="row"><button type="button" class="btn p" data-act="cloudgo">Conectar a la nube</button></div></div>`;
+  return `<div class="card" style="margin-top:14px"><h2>Sincronización entre dispositivos</h2>
+  <p class="note" style="margin:0 0 10px">Conecta la tienda y tu teléfono al mismo negocio: cada venta aparece en todos al instante, y el inventario se descuenta en todos. Sin internet sigue funcionando y se pone al día al volver la conexión.</p>${pill}${dev}${body}</div>`;
+}
+</script>
+<script>
 document.addEventListener("click",async e=>{
   const n=e.target.closest(".nav");if(n){go(n.dataset.v);return}
   const g=e.target.closest("[data-go]");if(g){go(g.dataset.go);return}
@@ -643,13 +740,16 @@ document.addEventListener("click",async e=>{
     case"checkout":checkout();break;
     case"seeinv":showInvoice(id);break;
     case"copyinv":try{await navigator.clipboard.writeText(invText(S.sales[id]));toast("Factura copiada")}catch(x){toast("No se pudo copiar")}break;
-    case"dorestore":if(ui.pending&&mode!=="db"){COLS.forEach(c=>S[c]=ui.pending[c]||{});S.settings=ui.pending.settings||{};saveLocal();ui.pending=null;closeModal();render(true);toast("Respaldo restaurado")}break;
+    case"dorestore":if(ui.pending&&mode==="local"){COLS.forEach(c=>S[c]=ui.pending[c]||{});S.settings=ui.pending.settings||{};saveLocal();ui.pending=null;closeModal();render(true);toast("Respaldo restaurado")}break;
     case"upd":{const r=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();if(!r){toast("Las actualizaciones solo funcionan en la app instalada");break}toast("Buscando actualización…");try{await r.update()}catch(x){toast("Sin conexión para actualizar");break}setTimeout(()=>{if(!r.installing&&!r.waiting)toast("Ya tienes la última versión")},2500);break}
     case"prble":try{await prConnectBle();toast("Impresora conectada");prUI()}catch(x){if(!(x&&x.name==="NotFoundError"))toast(x.message||"No se pudo conectar")}break;
     case"prser":try{await prConnectSerial();toast("Puerto conectado")}catch(x){if(!(x&&x.name==="NotFoundError"))toast(x.message||"No se pudo conectar")}break;
     case"prtest":printTest();break;
     case"prdis":prDisconnect();break;
     case"prdirect":printDirect(id);break;
+    case"cloudgo":cloudConnect();break;
+    case"clouddis":if(b.dataset.sure)cloudOff();else{b.dataset.sure=1;b.textContent="Confirmar desconexión"}break;
+    case"cloudup":cloudUp();break;
     case"fmt":showInvoice(id,b.dataset.f);break;
     case"prt":printDoc(ui.fmt,id);break;
     case"dlk":dlDoc(ui.fmt,id);break;
@@ -678,6 +778,7 @@ document.addEventListener("input",e=>{
 });
 document.addEventListener("change",async e=>{
   const pm={pr_m:["prmethod",x=>x.value],pr_e:["enc",x=>x.value],pr_b:["baud",x=>+x.value],pr_l:["prLogo",x=>x.checked],pr_a:["autoprint",x=>x.checked]}[e.target.id];
+  if(e.target.id==="cl_dev"||e.target.id==="cl_ser"){const v=e.target.id==="cl_ser"?(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,3)||"F"):(e.target.value.trim()||myDevice());try{localStorage.setItem(e.target.id==="cl_ser"?"tp_serie":"tp_device",v)}catch(x){}e.target.value=v;toast("Guardado");return}
   if(pm){await putSettings({[pm[0]]:pm[1](e.target)});toast("Guardado");return}
   if(e.target.id==="rst"&&e.target.files[0]){
     try{const d=JSON.parse(await e.target.files[0].text());if(!d||typeof d.products!=="object"||typeof d.sales!=="object")throw 0;ui.pending=d;
@@ -693,7 +794,7 @@ addEventListener("appinstalled",()=>{window.deferredInstall=null;$("#installBtn"
 </script>
 
 <script>
-const APP_VERSION="3.0 · 18 nov 2026";
+const APP_VERSION="4.0 · 18 nov 2026";
 if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){
   let had=!!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener("controllerchange",()=>{

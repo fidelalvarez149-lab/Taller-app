@@ -29,3 +29,28 @@ Ajustes → Impresora térmica → Conectar por Bluetooth, elige tu impresora y 
 - Android y PC: Chrome o Edge, impresoras Bluetooth LE. En PC también por USB/serie.
 - iPhone: Safari no permite Bluetooth; usa el navegador Bluefy.
 - Impresoras de Bluetooth clásico (muchas de 58 mm): en Android instala RawBT y elige RawBT en "Cómo imprimir directo".
+
+## Sincronizar varios dispositivos (tienda + tu teléfono) en tiempo real
+Usa Firebase (gratis para este uso). Se hace una sola vez:
+1. Entra a https://console.firebase.google.com → Crear proyecto.
+2. Build → Firestore Database → Crear base de datos (modo producción, región cercana).
+3. Build → Authentication → Comenzar → Correo/contraseña → Habilitar. En la pestaña Usuarios agrega una cuenta (por ejemplo la tuya) y, si quieres, otra para la tienda. En Settings → User actions desactiva "Enable create (sign-up)".
+4. Firestore → Reglas → pega esto, cambia los correos por los tuyos y Publicar:
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /negocios/{code}/{document=**} {
+      allow read, write: if request.auth != null
+        && request.auth.token.email in ['tu@correo.com','tienda@correo.com'];
+    }
+  }
+}
+```
+5. Configuración del proyecto (engranaje) → Tus apps → Web (</>) → registra la app y copia el bloque `firebaseConfig`.
+6. En la app, en CADA dispositivo: Ajustes → Sincronización entre dispositivos. Ponle nombre al dispositivo (Tienda, Gregory) y una serie de facturas distinta (A, B…). Pega la configuración, deja el código del negocio igual en todos, escribe el correo y contraseña y toca Conectar.
+7. En el primer dispositivo, si ya tenías ventas guardadas, toca "Subir los datos de este dispositivo" una sola vez.
+
+- Cada venta, producto y reparación aparece en los demás dispositivos al instante, y el inventario se descuenta en todos.
+- Cuando entra una venta de otro dispositivo, te llega aviso en la campana mientras tienes la app abierta.
+- Sin internet todo sigue funcionando y se sincroniza al volver la conexión.
