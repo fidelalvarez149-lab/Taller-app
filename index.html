@@ -314,11 +314,14 @@ async function checkout(){
 }
 </script>
 <script>
+function repInfo(s){const r=s.rep||(s.repairNum&&list("repairs").find(x=>x.num===s.repairNum));return r&&r.issue?{num:r.num||s.repairNum||"",device:r.device||"",imei:r.imei||"",issue:r.issue}:null}
+function repHTML(s){const r=repInfo(s);return r?`<br><b>Equipo:</b> ${esc(r.device)}${r.imei?" · IMEI "+esc(r.imei):""}<br><b>Falla reportada:</b> ${esc(r.issue)}${r.num?`<br><b>Orden:</b> ${esc(r.num)}`:""}`:""}
+function repTk(s){const r=repInfo(s);return r?`<hr><div class="b">Equipo:</div><div>${esc(r.device)}${r.imei?" · "+esc(r.imei):""}</div><div class="b">Falla reportada:</div><div>${esc(r.issue)}</div>`:""}
 function invBody(s){
   const c=cfg();
   return `<div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap"><div>${c.logo?`<img src="${c.logo}" alt="" style="max-height:64px;max-width:170px;display:block;margin-bottom:6px">`:""}<h2>${esc(c.name)}</h2><div>${esc(c.address)}</div><div>${c.phone?"Tel. "+esc(c.phone):""}</div>${c.ruc?`<div>RUC ${esc(c.ruc)}</div>`:""}</div>
   <div style="text-align:right"><h2 style="font-size:18px">FACTURA ${esc(s.num)}</h2><div>${fdate(s.ts)}</div>${s.status==="anulada"?`<div style="color:#c4281c;font-weight:700">ANULADA</div>`:""}</div></div>
-  <div style="margin:16px 0;padding:10px 12px;background:#f4f5f7;border-radius:6px"><b>Cliente:</b> ${esc(s.customer.name)} ${s.customer.phone?" · Tel. "+esc(s.customer.phone):""}<br><b>Pago:</b> ${esc(s.method)}</div>
+  <div style="margin:16px 0;padding:10px 12px;background:#f4f5f7;border-radius:6px"><b>Cliente:</b> ${esc(s.customer.name)} ${s.customer.phone?" · Tel. "+esc(s.customer.phone):""}<br><b>Pago:</b> ${esc(s.method)}${repHTML(s)}</div>
   <table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:6px">Descripción</th><th style="text-align:right;padding:6px">Cant.</th><th style="text-align:right;padding:6px">Precio</th><th style="text-align:right;padding:6px">Importe</th></tr></thead><tbody>
   ${s.items.map(l=>`<tr><td style="padding:6px;border-bottom:1px solid #eee">${esc(l.name)}</td><td style="text-align:right;padding:6px;border-bottom:1px solid #eee">${l.qty}</td><td style="text-align:right;padding:6px;border-bottom:1px solid #eee">${money(l.price)}</td><td style="text-align:right;padding:6px;border-bottom:1px solid #eee">${money(l.qty*l.price)}</td></tr>`).join("")}</tbody></table>
   <div style="margin-left:auto;max-width:260px;margin-top:12px"><div class="tot"><span>Subtotal</span><span>${money(s.subtotal)}</span></div>${s.discount?`<div class="tot"><span>Descuento</span><span>− ${money(s.discount)}</span></div>`:""}${s.tax?`<div class="tot"><span>IVA ${s.taxRate}%</span><span>${money(s.tax)}</span></div>`:""}<div class="tot big"><span>Total</span><span>${money(s.total)}</span></div></div>
@@ -332,7 +335,7 @@ function showInvoice(id,fmt){
   <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-act="close">Cerrar</button>${s.status!=="anulada"&&isAdmin()?`<button class="btn" data-act="editinv" data-id="${id}">Editar</button><button class="btn d" data-act="void" data-id="${id}">Anular</button>`:""}<button class="btn" data-act="copyinv" data-id="${id}">WhatsApp</button><button class="btn" data-act="dlk" data-id="${id}">Descargar</button>${CAN_PRINT&&tk?`<button class="btn" data-act="prt" data-id="${id}">Imprimir (diálogo)</button><button class="btn p" data-act="prdirect" data-id="${id}">Imprimir directo</button>`:`<button class="btn p" data-act="prt" data-id="${id}">Imprimir ${tk?"ticket":"factura"}</button>`}</div>
   <p class="note" style="text-align:right;margin:8px 0 0">${CAN_PRINT?"Se abre el diálogo de impresión de tu dispositivo: elige tu impresora.":"Aquí se descarga el documento para imprimir. Instalada la app, imprime directo."}</p>`);
 }
-function invText(s){const c=cfg();return `*${c.name}*\nFactura ${s.num} · ${fdate(s.ts)}\nCliente: ${s.customer.name}\n\n`+s.items.map(l=>`${l.qty} x ${l.name} — ${money(l.qty*l.price)}`).join("\n")+(s.discount?`\nDescuento: -${money(s.discount)}`:"")+(s.tax?`\nIVA: ${money(s.tax)}`:"")+`\n*TOTAL: ${money(s.total)}*\nPago: ${s.method}\n\n${c.footer}`}
+function invText(s){const c=cfg();return `*${c.name}*\nFactura ${s.num} · ${fdate(s.ts)}\nCliente: ${s.customer.name}${repInfo(s)?`\nEquipo: ${repInfo(s).device}\nFalla reportada: ${repInfo(s).issue}`:""}\n\n`+s.items.map(l=>`${l.qty} x ${l.name} — ${money(l.qty*l.price)}`).join("\n")+(s.discount?`\nDescuento: -${money(s.discount)}`:"")+(s.tax?`\nIVA: ${money(s.tax)}`:"")+`\n*TOTAL: ${money(s.total)}*\nPago: ${s.method}\n\n${c.footer}`}
 async function download(name,data,msg){
   try{const d=window.claude?await window.claude.use("downloads"):null;if(d){await d.save({filename:name,data});toast(msg||"Archivo listo");return}}catch(e){if(e&&e.code==="declined")return}
   const ext=name.split(".").pop(),types={html:"text/html",csv:"text/csv",json:"application/json"};
@@ -362,7 +365,7 @@ function ticketBody(s){
   const c=cfg(),L=(a,b)=>`<div class="r"><span>${a}</span><span>${b}</span></div>`;
   return `<div class="t">${c.logo?`<div class="c"><img src="${c.logo}" alt="" style="max-width:55%;max-height:22mm;filter:grayscale(1) contrast(1.4)"></div>`:""}
   <div class="c b big">${esc(c.name)}</div>${c.address?`<div class="c">${esc(c.address)}</div>`:""}${c.phone?`<div class="c">Tel. ${esc(c.phone)}</div>`:""}${c.ruc?`<div class="c">RUC ${esc(c.ruc)}</div>`:""}<hr>
-  <div class="b">FACTURA ${esc(s.num)}${s.status==="anulada"?" (ANULADA)":""}</div><div>${fdate(s.ts)}</div><div>Cliente: ${esc(s.customer.name)}</div>${s.customer.phone?`<div>Tel: ${esc(s.customer.phone)}</div>`:""}<hr>
+  <div class="b">FACTURA ${esc(s.num)}${s.status==="anulada"?" (ANULADA)":""}</div><div>${fdate(s.ts)}</div><div>Cliente: ${esc(s.customer.name)}</div>${s.customer.phone?`<div>Tel: ${esc(s.customer.phone)}</div>`:""}${repTk(s)}<hr>
   ${s.items.map(l=>`<div>${esc(l.name)}</div>${L(l.qty+" x "+money(l.price).replace("C$ ","C$"),money(l.qty*l.price).replace("C$ ","C$"))}`).join("")}<hr>
   ${L("Subtotal",money(s.subtotal).replace("C$ ","C$"))}${s.discount?L("Descuento","-"+money(s.discount).replace("C$ ","C$")):""}${s.tax?L("IVA "+s.taxRate+"%",money(s.tax).replace("C$ ","C$")):""}
   <div class="r b big"><span>TOTAL</span><span>${money(s.total).replace("C$ ","C$")}</span></div><div>Pago: ${esc(s.method)}</div><hr><div class="c">${esc(c.footer)}</div><div class="c b">¡Gracias por su compra!</div></div>`;
@@ -416,7 +419,7 @@ function repForm(id){
     const c=cfg(),rid=id||uid(),base=id?S.repairs[id]:{num:nextNum(repPrefix(),"repairs"),ts:new Date().toISOString(),parts:[]};
     const cid=await ensureClient(ui.rdraft.customer.name,ui.rdraft.customer.phone);await put("repairs",rid,{...base,...ui.rdraft,cid,by:base.by||byMe()});closeModal();toast("Orden guardada");};
 }
-function syncRep(){ui.rdraft={customer:{name:$("#rn").value.trim(),phone:$("#rp").value.trim()},device:$("#rd").value.trim(),imei:$("#ri").value.trim(),issue:$("#ra").value.trim(),labor:+$("#rl").value||0,deposit:+$("#rdp").value||0,status:$("#rs").value}}
+function syncRep(){if(!$("#rn")){ui.rdraft={};return}ui.rdraft={customer:{name:$("#rn").value.trim(),phone:$("#rp").value.trim()},device:$("#rd").value.trim(),imei:$("#ri").value.trim(),issue:$("#ra").value.trim(),labor:+$("#rl").value||0,deposit:+$("#rdp").value||0,status:$("#rs").value}}
 async function addPart(id){
   const pid=$("#pp").value,qty=parseInt($("#pq2").value)||1,p=S.products[pid];
   if(!p){toast("Elige un repuesto");return}
@@ -435,7 +438,7 @@ async function billRepair(id){
   const items=[...(r.labor?[{name:"Mano de obra: "+r.device,qty:1,price:r.labor,cost:0}]:[]),...(r.parts||[]).map(p=>({name:p.name,qty:p.qty,price:p.price,cost:p.cost}))];
   if(!items.length){toast("Agrega mano de obra o repuestos");return}
   const sub=items.reduce((s,l)=>s+l.qty*l.price,0),tax=sub*(+c.tax||0)/100,sid=uid(),num=nextNum(mySerie(),"sales");
-  await put("sales",sid,{num,ts:new Date().toISOString(),customer:{...r.customer},method:"Efectivo",items,subtotal:sub,discount:0,taxRate:+c.tax||0,tax,total:sub+tax,status:"emitida",device:myDevice(),by:byMe(),cid:r.cid||"",repairNum:r.num});
+  await put("sales",sid,{num,ts:new Date().toISOString(),customer:{...r.customer},method:"Efectivo",items,subtotal:sub,discount:0,taxRate:+c.tax||0,tax,total:sub+tax,status:"emitida",device:myDevice(),by:byMe(),cid:r.cid||"",repairNum:r.num,rep:{num:r.num,device:r.device,imei:r.imei||"",issue:r.issue}});
   await put("repairs",id,{...r,saleId:sid,status:r.status==="Listo"?"Entregado":r.status});closeModal();toast("Factura generada");showInvoice(sid);
 }
 </script>
@@ -764,6 +767,7 @@ async function escposSale(s,withLogo){
   raw(0x1B,0x61,0);L("-".repeat(n));
   raw(0x1B,0x45,1);L("FACTURA "+s.num+(s.status==="anulada"?" (ANULADA)":""));raw(0x1B,0x45,0);
   L(fdate(s.ts));wrapTxt("Cliente: "+s.customer.name,n).forEach(L);if(s.customer.phone)L("Tel: "+s.customer.phone);
+  const ri=repInfo(s);if(ri){raw(0x1B,0x45,1);L("Equipo:");raw(0x1B,0x45,0);wrapTxt(ri.device+(ri.imei?" · "+ri.imei:""),n).forEach(L);raw(0x1B,0x45,1);L("Falla reportada:");raw(0x1B,0x45,0);wrapTxt(ri.issue,n).forEach(L)}
   L("-".repeat(n));
   s.items.forEach(l=>{wrapTxt(l.name,n).forEach(L);L(padLR(l.qty+" x "+mny(l.price),mny(l.qty*l.price),n))});
   L("-".repeat(n));L(padLR("Subtotal",mny(s.subtotal),n));
@@ -1054,7 +1058,7 @@ ui.day=today();setInterval(()=>{const t=today();if(ui.day!==t){ui.day=t;if(view=
 </script>
 
 <script>
-const APP_VERSION="5.1 · 20 nov 2026";
+const APP_VERSION="5.2 · 20 nov 2026";
 if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){
   let had=!!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener("controllerchange",()=>{
