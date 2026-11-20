@@ -87,3 +87,6 @@ service cloud.firestore {
 - Un empleado desactivado pierde el acceso de inmediato en la nube; la cuenta de correo sigue existiendo pero no puede leer ni escribir nada.
 - Los empleados no ven los costos en pantalla; los costos viajan dentro de los datos de cada producto, así que alguien con conocimientos técnicos podría leerlos con las herramientas del navegador.
 - Cada venta, producto y reparación aparece en todos los dispositivos al instante. Sin internet todo sigue funcionando y se sincroniza al volver la conexión. Los avisos llegan con la app abierta.
+
+## Editar facturas (administrador)
+Facturas → Editar (o dentro de la vista previa). Se pueden cambiar cliente, forma de pago, descuento, cantidades, precios, y agregar o quitar líneas. Al guardar se recalculan el inventario, las ventas de hoy y del mes y la ganancia. La factura queda marcada como "Editada" con el historial de cambios.

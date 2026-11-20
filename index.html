@@ -327,9 +327,9 @@ function invBody(s){
 function showInvoice(id,fmt){
   const s=S.sales[id];if(!s)return;ui.fmt=fmt||ui.fmt||"ticket";
   const tk=ui.fmt==="ticket",w=cfg().paper==="58"?"48mm":"72mm";
-  openModal(`<div class="row" style="justify-content:space-between;margin-bottom:12px"><h2>Vista previa · ${esc(s.num)}</h2><div class="tabs" style="margin:0"><button class="tab" data-act="fmt" data-id="${id}" data-f="ticket" aria-pressed="${tk}">Ticket</button><button class="tab" data-act="fmt" data-id="${id}" data-f="factura" aria-pressed="${!tk}">Factura</button></div></div>
+  openModal(`<div class="row" style="justify-content:space-between;margin-bottom:12px"><h2>Vista previa · ${esc(s.num)}${s.edits&&s.edits.length?` <span class="pill warn" style="vertical-align:middle">Editada</span>`:""}</h2><div class="tabs" style="margin:0"><button class="tab" data-act="fmt" data-id="${id}" data-f="ticket" aria-pressed="${tk}">Ticket</button><button class="tab" data-act="fmt" data-id="${id}" data-f="factura" aria-pressed="${!tk}">Factura</button></div></div>
   <div style="background:var(--surface2);border-radius:12px;padding:16px;max-height:58vh;overflow:auto">${tk?`<div class="tkp" style="width:${w}">${ticketBody(s)}</div>`:`<div class="inv">${invBody(s)}</div>`}</div>
-  <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-act="close">Cerrar</button>${s.status!=="anulada"&&isAdmin()?`<button class="btn d" data-act="void" data-id="${id}">Anular</button>`:""}<button class="btn" data-act="copyinv" data-id="${id}">WhatsApp</button><button class="btn" data-act="dlk" data-id="${id}">Descargar</button>${CAN_PRINT&&tk?`<button class="btn" data-act="prt" data-id="${id}">Imprimir (diálogo)</button><button class="btn p" data-act="prdirect" data-id="${id}">Imprimir directo</button>`:`<button class="btn p" data-act="prt" data-id="${id}">Imprimir ${tk?"ticket":"factura"}</button>`}</div>
+  <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-act="close">Cerrar</button>${s.status!=="anulada"&&isAdmin()?`<button class="btn" data-act="editinv" data-id="${id}">Editar</button><button class="btn d" data-act="void" data-id="${id}">Anular</button>`:""}<button class="btn" data-act="copyinv" data-id="${id}">WhatsApp</button><button class="btn" data-act="dlk" data-id="${id}">Descargar</button>${CAN_PRINT&&tk?`<button class="btn" data-act="prt" data-id="${id}">Imprimir (diálogo)</button><button class="btn p" data-act="prdirect" data-id="${id}">Imprimir directo</button>`:`<button class="btn p" data-act="prt" data-id="${id}">Imprimir ${tk?"ticket":"factura"}</button>`}</div>
   <p class="note" style="text-align:right;margin:8px 0 0">${CAN_PRINT?"Se abre el diálogo de impresión de tu dispositivo: elige tu impresora.":"Aquí se descarga el documento para imprimir. Instalada la app, imprime directo."}</p>`);
 }
 function invText(s){const c=cfg();return `*${c.name}*\nFactura ${s.num} · ${fdate(s.ts)}\nCliente: ${s.customer.name}\n\n`+s.items.map(l=>`${l.qty} x ${l.name} — ${money(l.qty*l.price)}`).join("\n")+(s.discount?`\nDescuento: -${money(s.discount)}`:"")+(s.tax?`\nIVA: ${money(s.tax)}`:"")+`\n*TOTAL: ${money(s.total)}*\nPago: ${s.method}\n\n${c.footer}`}
@@ -354,7 +354,7 @@ function vFac(){
   return `<div class="top"><div><h1>Facturas</h1><p>Registro de todo lo vendido.</p></div><button class="btn" data-act="csvsales">Exportar CSV</button></div>
   <div class="grid kpis"><div class="kpi"><span>Facturas emitidas</span><b>${ok.length}</b></div><div class="kpi"><span>Total facturado</span><b>${money(ok.reduce((s,x)=>s+x.total,0))}</b></div></div>
   <div class="card"><input id="fq" placeholder="Buscar por número, cliente o teléfono" value="${esc(ui.fq||"")}" style="max-width:340px;margin-bottom:12px"><div class="tw"><table><thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Pago</th><th class="n">Total</th><th>Estado</th><th></th></tr></thead><tbody>
-  ${ss.map(s=>`<tr><td class="mono">${esc(s.num)}</td><td>${fdate(s.ts)}</td><td>${esc(s.customer.name)}${(s.by&&s.by.name)||s.device?`<div class="note">${esc((s.by&&s.by.name)||s.device)}</div>`:""}</td><td>${esc(s.method)}</td><td class="n"><b>${money(s.total)}</b></td><td><span class="pill ${s.status==="anulada"?"bad":"good"}">${s.status==="anulada"?"Anulada":"Emitida"}</span></td><td class="n"><button class="btn s" data-act="seeinv" data-id="${s.id}">Imprimir</button> <button class="btn s" data-act="seeinv" data-id="${s.id}">Ver</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">Aún no hay facturas.</td></tr>`}</tbody></table></div></div>`;
+  ${ss.map(s=>`<tr><td class="mono">${esc(s.num)}</td><td>${fdate(s.ts)}</td><td>${esc(s.customer.name)}${(s.by&&s.by.name)||s.device?`<div class="note">${esc((s.by&&s.by.name)||s.device)}</div>`:""}</td><td>${esc(s.method)}</td><td class="n"><b>${money(s.total)}</b></td><td><span class="pill ${s.status==="anulada"?"bad":"good"}">${s.status==="anulada"?"Anulada":"Emitida"}</span></td><td class="n"><button class="btn s" data-act="seeinv" data-id="${s.id}">Imprimir</button> <button class="btn s" data-act="seeinv" data-id="${s.id}">Ver</button>${isAdmin()&&s.status!=="anulada"?` <button class="btn s" data-act="editinv" data-id="${s.id}">Editar</button>`:""}</td></tr>`).join("")||`<tr><td colspan="7" class="empty">Aún no hay facturas.</td></tr>`}</tbody></table></div></div>`;
 }
 
 function readLogo(file){return new Promise((res,rej)=>{const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{const k=Math.min(1,360/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);res(c.toDataURL("image/jpeg",.85))};img.onerror=()=>rej(new Error("img"));img.src=url})}
@@ -604,6 +604,53 @@ async function empAct(kind,id){
 }
 </script>
 <script>
+/* Edición de facturas (solo administrador): al guardar se recalcula inventario, ventas de hoy, ventas del mes y ganancia */
+const r2=n=>Math.round((+n||0)*100)/100;
+const cmpTxt=(a,b,t)=>b>0?` · ${a>=b?"▲":"▼"} ${Math.abs(Math.round((a-b)/b*100))}%${t}`:"";
+function salesNow(){
+  const ok=list("sales").filter(s=>s.status!=="anulada"),d0=today(),m0=d0.slice(0,7);
+  const mon=ok.filter(s=>localDay(s.ts).slice(0,7)===m0);
+  return{day:r2(ok.filter(s=>localDay(s.ts)===d0).reduce((t,s)=>t+s.total,0)),mon:r2(mon.reduce((t,s)=>t+s.total,0)),gan:r2(mon.reduce((t,s)=>t+saleProfit(s),0))};
+}
+function einvOpen(id){
+  const s=S.sales[id];if(!s||s.status==="anulada")return;
+  ui.edit={id,items:s.items.map(l=>({...l})),name:s.customer.name,phone:s.customer.phone||"",method:s.method,disc:s.discount||0};einvDraw();
+}
+function einvTot(){
+  const E=ui.edit,s=S.sales[E.id],sub=r2(E.items.reduce((t,l)=>t+l.qty*l.price,0)),disc=r2(Math.min(sub,Math.max(0,+E.disc||0))),tax=r2((sub-disc)*(s.taxRate||0)/100);
+  return{sub,disc,tax,total:r2(sub-disc+tax)};
+}
+function einvTotHTML(){
+  const E=ui.edit,s=S.sales[E.id],t=einvTot(),d=r2(t.total-s.total);
+  return `<div class="tot"><span>Subtotal</span><span>${money(t.sub)}</span></div>${t.disc?`<div class="tot"><span>Descuento</span><span>− ${money(t.disc)}</span></div>`:""}${t.tax?`<div class="tot"><span>IVA ${s.taxRate}%</span><span>${money(t.tax)}</span></div>`:""}<div class="tot big"><span>Total</span><span>${money(t.total)}</span></div><div class="note" style="text-align:right">${d===0?"Sin cambios en el total":"Antes "+money(s.total)+" · "+(d>0?"sube ":"baja ")+money(Math.abs(d))}</div>`;
+}
+function einvDraw(){
+  const E=ui.edit,s=S.sales[E.id],ps=list("products").sort((a,b)=>a.name.localeCompare(b.name));
+  openModal(`<h2>Editar factura ${esc(s.num)}</h2><p class="note">Al guardar se actualizan el inventario, las ventas de hoy y del mes, y la ganancia.</p>
+  <div class="f" style="margin-top:12px"><div><label for="ei_cn">Cliente</label><input id="ei_cn" list="clist" autocomplete="off" data-ei="name" value="${esc(E.name)}">${clientList()}</div><div><label for="ei_cp">Teléfono</label><input id="ei_cp" data-ei="phone" inputmode="tel" value="${esc(E.phone)}"></div>
+  <div><label for="ei_m">Forma de pago</label><select id="ei_m" data-ei="method">${["Efectivo","Transferencia","Tarjeta","Crédito"].map(m=>`<option ${m===E.method?"selected":""}>${m}</option>`).join("")}</select></div><div><label for="ei_d">Descuento (C$)</label><input id="ei_d" type="number" min="0" step="0.01" data-ei="disc" value="${E.disc||""}"></div></div>
+  <div class="tw" style="margin-top:12px"><table><thead><tr><th>Descripción</th><th class="n">Cant.</th><th class="n">Precio</th><th class="n">Importe</th><th></th></tr></thead><tbody>
+  ${E.items.map((l,i)=>`<tr><td>${esc(l.name)}${l.pid?"":` <span class="note">servicio</span>`}</td><td class="n"><input type="number" min="0" step="1" value="${l.qty}" data-ei="qty" data-i="${i}" aria-label="Cantidad" style="width:76px"></td><td class="n"><input type="number" min="0" step="0.01" value="${l.price}" data-ei="price" data-i="${i}" aria-label="Precio" style="width:104px"></td><td class="n" id="eil_${i}">${money(l.qty*l.price)}</td><td class="n"><button type="button" class="btn s d" data-act="eirm" data-id="${i}">Quitar</button></td></tr>`).join("")}</tbody></table></div>
+  <div class="row" style="margin-top:10px"><select id="ei_add" style="flex:2;min-width:180px"><option value="">Agregar producto del inventario…</option>${ps.map(p=>`<option value="${p.id}">${esc(p.name)} (${p.stock}) · ${money(p.price)}</option>`).join("")}</select><button type="button" class="btn" data-act="eiadd">Agregar</button></div>
+  <div class="row" style="margin-top:8px"><input id="ei_svn" placeholder="Servicio o mano de obra" style="flex:2;min-width:160px"><input id="ei_svp" type="number" min="0" step="0.01" placeholder="Precio C$" style="flex:1;min-width:90px"><button type="button" class="btn" data-act="eisv">Agregar</button></div>
+  <div id="eitot" style="margin-top:14px">${einvTotHTML()}</div>
+  <div class="row" style="justify-content:flex-end;margin-top:14px"><button type="button" class="btn" data-act="seeinv" data-id="${E.id}">Cancelar</button><button type="button" class="btn p" data-act="einvsave">Guardar cambios</button></div>`);
+}
+async function einvSave(){
+  const E=ui.edit,s=E&&S.sales[E.id];if(!s||s.status==="anulada")return;
+  const items=E.items.filter(l=>l.qty>0).map(l=>({...l,qty:Math.round(l.qty)}));
+  if(!items.length){toast("La factura necesita al menos una línea");return}
+  const oldQ={},newQ={};s.items.forEach(l=>{if(l.pid)oldQ[l.pid]=(oldQ[l.pid]||0)+l.qty});items.forEach(l=>{if(l.pid)newQ[l.pid]=(newQ[l.pid]||0)+l.qty});
+  for(const pid in newQ){const p=S.products[pid];if(p&&newQ[pid]-(oldQ[pid]||0)>p.stock){toast("No hay suficiente existencia de "+p.name+" (quedan "+p.stock+")");return}}
+  const t=einvTot(),name=E.name.trim()||"Consumidor final",cid=await ensureClient(name,E.phone),before=salesNow();
+  const edit={ts:new Date().toISOString(),by:myName(),prev:s.total,now:t.total};
+  await put("sales",E.id,{...s,customer:{name,phone:E.phone.trim()},method:E.method,items,subtotal:t.sub,discount:t.disc,tax:t.tax,total:t.total,cid,edits:[...(s.edits||[]),edit].slice(-20)});
+  for(const pid of new Set([...Object.keys(oldQ),...Object.keys(newQ)])){const d=(oldQ[pid]||0)-(newQ[pid]||0);if(d!==0&&S.products[pid])await adjustStock(pid,d,"ajuste","Edición de factura "+s.num)}
+  ui.edit=null;closeModal();render(true);showInvoice(E.id);
+  const now=salesNow();toast("Factura "+s.num+" actualizada · Ventas de hoy "+money(now.day)+(now.mon!==before.mon?" · Mes "+money(now.mon):""));
+}
+</script>
+<script>
 function totBox(){const t=cartTotals(),c=cfg();return `<div class="tot"><span>Subtotal</span><span>${money(t.sub)}</span></div>${t.disc?`<div class="tot"><span>Descuento</span><span>− ${money(t.disc)}</span></div>`:""}${+c.tax?`<div class="tot"><span>IVA ${c.tax}%</span><span>${money(t.tax)}</span></div>`:""}<div class="tot big"><span>Total</span><span>${money(t.total)}</span></div>`}
 function vPanel(){
   const ok=list("sales").filter(s=>s.status!=="anulada"),now=new Date(),d0=today(),m0=d0.slice(0,7);
@@ -612,13 +659,17 @@ function vPanel(){
   const top={};mon.forEach(s=>s.items.forEach(l=>{if(l.pid){top[l.name]=(top[l.name]||0)+l.qty}}));
   const tops=Object.entries(top).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const low=list("products").filter(p=>p.stock<=(Number(p.min)||0)).sort((a,b)=>a.stock-b.stock).slice(0,8);
+  const yd=new Date(now.getFullYear(),now.getMonth(),now.getDate()-1).toLocaleDateString("sv-SE"),dayTot=day.reduce((t,x)=>t+x.total,0),monTot=mon.reduce((t,x)=>t+x.total,0);
+  const yTot=ok.filter(s=>localDay(s.ts)===yd).reduce((t,x)=>t+x.total,0);
+  const pmk=new Date(now.getFullYear(),now.getMonth()-1,1).toLocaleDateString("sv-SE").slice(0,7);
+  const pmTot=ok.filter(s=>{const d=localDay(s.ts);return d.slice(0,7)===pmk&&+d.slice(8)<=now.getDate()}).reduce((t,x)=>t+x.total,0);
   const act=list("repairs").filter(r=>r.status!=="Entregado").length,ready=list("repairs").filter(r=>r.status==="Listo").length;
   const rec=ok.sort((a,b)=>b.ts.localeCompare(a.ts)).slice(0,6);
-  return `<div class="top"><div><h1>Panel</h1><p>${now.toLocaleDateString("es-NI",{weekday:"long",day:"numeric",month:"long"})}</p></div><div class="row"><button class="btn" data-act="newr">+ Recibir equipo</button><button class="btn p" data-go="venta">Nueva venta</button></div></div>
+  return `<div class="top"><div><h1>Panel</h1><p>${now.toLocaleDateString("es-NI",{weekday:"long",day:"numeric",month:"long"})} · Actualizado ${now.toLocaleTimeString("es-NI",{hour:"2-digit",minute:"2-digit"})}</p></div><div class="row"><button class="btn" data-act="newr">+ Recibir equipo</button><button class="btn p" data-go="venta">Nueva venta</button></div></div>
   ${isAdmin()?`
-  <div class="grid kpis"><div class="kpi"><span>Ventas de hoy</span><b>${money(day.reduce((s,x)=>s+x.total,0))}</b><em>${day.length} facturas</em></div>
-  <div class="kpi"><span>Ventas del mes</span><b>${money(mon.reduce((s,x)=>s+x.total,0))}</b><em>${mon.length} facturas</em></div>
-  <div class="kpi"><span>Ganancia del mes</span><b>${money(profit)}</b><em>Precio menos costo de lo vendido</em></div>
+  <div class="grid kpis"><div class="kpi"><span>Ventas de hoy</span><b>${money(day.reduce((s,x)=>s+x.total,0))}</b><em>${day.length} factura${day.length===1?"":"s"}${cmpTxt(dayTot,yTot," vs ayer")}</em></div>
+  <div class="kpi"><span>Ventas del mes</span><b>${money(mon.reduce((s,x)=>s+x.total,0))}</b><em>${mon.length} factura${mon.length===1?"":"s"}${cmpTxt(monTot,pmTot," vs mes pasado")}</em></div>
+  <div class="kpi"><span>Ganancia del mes</span><b>${money(profit)}</b><em>Margen ${monTot?Math.round(profit/monTot*100):0}% sobre ventas</em></div>
   <div class="kpi"><span>Equipos en taller</span><b>${act}</b><em>${ready} listos para entregar</em></div></div>
   `:`
   <div class="grid kpis"><div class="kpi"><span>Mis ventas de hoy</span><b>${money(day.filter(s=>(s.by&&s.by.uid)===ME.uid).reduce((t,x)=>t+x.total,0))}</b><em>${day.filter(s=>(s.by&&s.by.uid)===ME.uid).length} facturas</em></div>
@@ -902,7 +953,7 @@ document.addEventListener("click",async e=>{
   const g=e.target.closest("[data-go]");if(g){go(g.dataset.go);return}
   const b=e.target.closest("[data-act]");if(!b)return;
   const a=b.dataset.act,id=b.dataset.id;
-  if(["newp","editp","delp","stock","csvinv","csvsales","void","backup","dorestore","cloudup","clouddis","rmlogo","csvrep","empnew","emptoggle","emprole","emppw","delc"].includes(a)&&!isAdmin()){toast("Solo el administrador puede hacer esto");return}
+  if(["newp","editp","delp","stock","csvinv","csvsales","void","backup","dorestore","cloudup","clouddis","rmlogo","csvrep","empnew","emptoggle","emprole","emppw","delc","editinv","einvsave","eiadd","eisv","eirm"].includes(a)&&!isAdmin()){toast("Solo el administrador puede hacer esto");return}
   switch(a){
     case"close":closeModal();break;
     case"newp":prodForm();break;
@@ -947,6 +998,11 @@ document.addEventListener("click",async e=>{
     case"emprole":empAct("role",id);break;
     case"emppw":empAct("pw",id);break;
     case"gosignout2":cloudSignOut();break;
+    case"editinv":einvOpen(id);break;
+    case"eirm":ui.edit.items.splice(+id,1);einvDraw();break;
+    case"eiadd":{const pid=$("#ei_add").value,p=S.products[pid];if(!p){toast("Elige un producto");break}const l=ui.edit.items.find(x=>x.pid===pid);if(l)l.qty++;else ui.edit.items.push({pid,name:p.name,qty:1,price:p.price,cost:p.cost});einvDraw();break}
+    case"eisv":{const n=$("#ei_svn").value.trim(),v=$("#ei_svp").value;if(!n||v===""){toast("Escribe el servicio y su precio");break}ui.edit.items.push({name:n,qty:1,price:+v,cost:0});einvDraw();break}
+    case"einvsave":einvSave();break;
     case"fmt":showInvoice(id,b.dataset.f);break;
     case"prt":printDoc(ui.fmt,id);break;
     case"dlk":dlDoc(ui.fmt,id);break;
@@ -968,6 +1024,9 @@ document.addEventListener("click",async e=>{
   }
 });
 document.addEventListener("input",e=>{
+  if(e.target.dataset&&e.target.dataset.ei){const E=ui.edit;if(!E)return;const k=e.target.dataset.ei;
+    if(k==="qty"||k==="price"){const i=+e.target.dataset.i,l=E.items[i];l[k]=Math.max(0,+e.target.value||0);const c=$("#eil_"+i);if(c)c.textContent=money(l.qty*l.price)}else E[k]=e.target.value;
+    $("#eitot").innerHTML=einvTotHTML();return}
   const id=e.target.id,m={iq:"iq",pq:"pq",fq:"fq",rq:"rq",cq:"cq"};
   if(m[id]){ui[m[id]]=e.target.value;const pos=e.target.selectionStart;render(true);const el=$("#"+id);if(el){el.focus();try{el.setSelectionRange(pos,pos)}catch(x){}}}
   else if(id==="cd"){syncCust();$("#totbox").innerHTML=totBox()}
@@ -990,11 +1049,12 @@ document.addEventListener("change",async e=>{
 });
 addEventListener("beforeinstallprompt",e=>{e.preventDefault();window.deferredInstall=e;$("#installBtn").hidden=false});
 addEventListener("appinstalled",()=>{window.deferredInstall=null;$("#installBtn").hidden=true;toast("App instalada")});
+ui.day=today();setInterval(()=>{const t=today();if(ui.day!==t){ui.day=t;if(view==="panel"||view==="reportes")render()}},30000);
 (async()=>{if(cloudCfg())gate("loading");render(true);await initStore();render(true);if(CAN_PRINT)prAuto();setTimeout(()=>{ui.seen=new Set(alerts().map(a=>a.key));ui.armed=true},1800)})();
 </script>
 
 <script>
-const APP_VERSION="5.0 · 19 nov 2026";
+const APP_VERSION="5.1 · 20 nov 2026";
 if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){
   let had=!!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener("controllerchange",()=>{
