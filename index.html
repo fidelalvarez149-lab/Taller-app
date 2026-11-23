@@ -1,6 +1,6 @@
 <!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="light dark"><meta name="theme-color" content="#14171f"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Taller Pro"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}:root{padding-top:env(safe-area-inset-top,0px)}</style>
-<title>Taller Pro</title>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="light dark"><meta name="theme-color" content="#040a22"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="DíazCell"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}:root{padding-top:env(safe-area-inset-top,0px)}</style>
+<title>DíazCell</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Space+Grotesk:wght@500;700&display=swap">
 <style>
@@ -135,10 +135,11 @@ td.n,th.n{white-space:nowrap}
 </style>
 <div class="app">
 <nav class="side" aria-label="Secciones">
-<div class="brand"><span id="brandName">Taller Pro</span><small>Reparación y accesorios</small></div>
+<div class="brand"><span id="brandName">DíazCell</span><small>Reparación y accesorios</small></div>
 <button class="nav" data-v="panel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Panel</button>
 <button class="nav" data-v="venta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 12.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 7H6"/></svg>Vender</button>
 <button class="nav" data-v="rep"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>Reparaciones</button>
+<button class="nav" data-v="enc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/></svg>Encargos</button>
 <button class="nav" data-v="cli"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c2 .7 3.2 2.4 3.5 5.2"/></svg>Clientes</button>
 <button class="nav" data-v="inv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>Inventario</button>
 <button class="nav" data-v="fac"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h8"/></svg>Facturas</button>
@@ -158,8 +159,8 @@ td.n,th.n{white-space:nowrap}
 <div class="gate" id="gate" hidden></div>
 <script>
 "use strict";
-const COLS=["products","sales","repairs","moves","clientes"];
-const S={products:{},sales:{},repairs:{},moves:{},clientes:{},usuarios:{},settings:{}};
+const COLS=["products","sales","repairs","moves","clientes","encargos"];
+const S={products:{},sales:{},repairs:{},moves:{},clientes:{},encargos:{},usuarios:{},settings:{}};
 const DEF={name:"Mi Taller",phone:"",address:"",ruc:"",tax:0,next:1,nextRep:1,footer:"Gracias por su preferencia. Garantía de reparación: 30 días.",lowDefault:3,paper:"80",logo:"",enc:"cp858",prLogo:true,autoprint:false,baud:9600,prmethod:"direct"};
 let DB=null,FS=false,mode="local",view="panel",ui={};
 const $=s=>document.querySelector(s);
@@ -654,6 +655,133 @@ async function einvSave(){
 }
 </script>
 <script>
+/* Encargos y abonos: apartar productos para un cliente, recibir abonos y cancelar (pagar) la cuenta */
+const encPrefix=()=>mySerie()==="F"?"E":"E"+mySerie();
+const encTotal=e=>r2((e.items||[]).reduce((t,l)=>t+l.qty*l.price,0));
+const encPaid=e=>r2((e.abonos||[]).reduce((t,a)=>t+a.amount,0));
+const encBal=e=>r2(Math.max(0,encTotal(e)-encPaid(e)));
+const ENC_ST={pendiente:["warn","Pendiente"],cancelado:["good","Cancelado"],anulado:["bad","Anulado"]};
+const encPill=e=>{const s=ENC_ST[e.status]||ENC_ST.pendiente;return `<span class="pill ${s[0]}">${s[1]}</span>`};
+function encStats(){
+  const all=list("encargos").filter(e=>e.status!=="anulado"),open=all.filter(e=>e.status==="pendiente"),d0=today();
+  return{open:open.length,owed:r2(open.reduce((t,e)=>t+encBal(e),0)),abHoy:r2(all.reduce((t,e)=>t+(e.abonos||[]).filter(a=>localDay(a.ts)===d0).reduce((s,a)=>s+a.amount,0),0))};
+}
+const encItemsTxt=e=>(e.items||[]).map(l=>l.qty+" x "+l.name).join(", ");
+function vEnc(){
+  const f=ui.ef||"pend",q=(ui.eq||"").toLowerCase(),st=encStats();
+  let es=list("encargos").sort((a,b)=>b.ts.localeCompare(a.ts)).filter(e=>!q||(e.num+" "+e.customer.name+" "+(e.customer.phone||"")+" "+encItemsTxt(e)).toLowerCase().includes(q));
+  es=f==="pend"?es.filter(e=>e.status==="pendiente"):f==="canc"?es.filter(e=>e.status==="cancelado"):es;
+  return `<div class="top"><div><h1>Encargos y abonos</h1><p>Productos que te piden o apartan, con sus abonos y el saldo de cada cliente.</p></div><button class="btn p" data-act="newe">+ Nuevo encargo</button></div>
+  <div class="grid kpis" style="margin-bottom:16px"><div class="kpi"><span>Por cobrar</span><b>${money(st.owed)}</b><em>${st.open} encargo${st.open===1?"":"s"} pendiente${st.open===1?"":"s"}</em></div><div class="kpi"><span>Abonos recibidos hoy</span><b>${money(st.abHoy)}</b><em>Dinero que entró hoy</em></div></div>
+  <div class="card"><div class="row" style="margin-bottom:12px"><input id="eq" placeholder="Buscar por cliente, teléfono, producto o número" value="${esc(ui.eq||"")}" style="max-width:340px">
+  <div class="tabs" style="margin:0">${[["pend","Pendientes"],["canc","Cancelados"],["all","Todos"]].map(([k,l])=>`<button class="tab" data-act="ef" data-id="${k}" aria-pressed="${f===k}">${l}</button>`).join("")}</div></div>
+  <div class="tw"><table><thead><tr><th>Encargo</th><th>Cliente</th><th>Productos</th><th class="n">Total</th><th class="n">Abonado</th><th class="n">Saldo</th><th>Estado</th><th></th></tr></thead><tbody>
+  ${es.map(e=>`<tr><td class="mono">${esc(e.num)}<div class="note">${fdate(e.ts)}</div></td><td><b>${esc(e.customer.name)}</b><div class="note">${esc(e.customer.phone||"")}</div></td><td><div class="note" style="max-width:240px">${esc(encItemsTxt(e))}</div></td><td class="n">${money(encTotal(e))}</td><td class="n">${money(encPaid(e))}</td><td class="n"><b>${money(e.status==="pendiente"?encBal(e):0)}</b></td><td>${encPill(e)}</td><td class="n"><button class="btn s" data-act="opene" data-id="${e.id}">Abrir</button></td></tr>`).join("")||`<tr><td colspan="8" class="empty">No hay encargos en esta vista.</td></tr>`}</tbody></table></div></div>`;
+}
+/* ---- crear / editar encargo ---- */
+function newEnc(){ui.edraft={id:"",name:"",phone:"",note:"",items:[]};encDraw()}
+function editEnc(id){const e=S.encargos[id];if(!e||e.status!=="pendiente")return;ui.edraft={id,name:e.customer.name,phone:e.customer.phone||"",note:e.note||"",items:e.items.map(l=>({...l}))};encDraw()}
+function syncEnc(){const D=ui.edraft;if(!D||!$("#en_n"))return;D.name=$("#en_n").value;D.phone=$("#en_p").value;D.note=$("#en_o").value}
+function encDraw(){
+  const D=ui.edraft,ps=list("products").sort((a,b)=>a.name.localeCompare(b.name)),tot=r2(D.items.reduce((t,l)=>t+l.qty*l.price,0));
+  openModal(`<h2>${D.id?"Editar encargo "+esc(S.encargos[D.id].num):"Nuevo encargo"}</h2><div class="f" style="margin-top:12px"><div><label for="en_n">Cliente</label><input id="en_n" list="clist" autocomplete="off" value="${esc(D.name)}" placeholder="Nombre de quien encarga">${clientList()}</div><div><label for="en_p">Teléfono</label><input id="en_p" inputmode="tel" value="${esc(D.phone)}"></div></div>
+  <div style="margin-top:10px"><label for="en_o">Nota (opcional)</label><input id="en_o" value="${esc(D.note)}" placeholder="Ej.: llega el lunes, color negro"></div>
+  <div class="tw" style="margin-top:12px"><table><thead><tr><th>Producto</th><th class="n">Cant.</th><th class="n">Precio</th><th class="n">Importe</th><th></th></tr></thead><tbody>
+  ${D.items.map((l,i)=>`<tr><td>${esc(l.name)}${l.pid?"":` <span class="note">por pedir</span>`}</td><td class="n"><input type="number" min="1" step="1" value="${l.qty}" data-en="qty" data-i="${i}" aria-label="Cantidad" style="width:70px"></td><td class="n"><input type="number" min="0" step="0.01" value="${l.price}" data-en="price" data-i="${i}" aria-label="Precio" style="width:100px"></td><td class="n" id="enl_${i}">${money(l.qty*l.price)}</td><td class="n"><button type="button" class="btn s d" data-act="encrm" data-id="${i}">Quitar</button></td></tr>`).join("")||`<tr><td colspan="5" class="empty">Agrega los productos del encargo.</td></tr>`}</tbody></table></div>
+  <div class="row" style="margin-top:10px"><select id="en_add" style="flex:2;min-width:180px"><option value="">Producto del inventario…</option>${ps.map(p=>`<option value="${p.id}">${esc(p.name)} (${p.stock}) · ${money(p.price)}</option>`).join("")}</select><input id="en_aq" type="number" min="1" value="1" style="width:76px" aria-label="Cantidad"><button type="button" class="btn" data-act="encaddp">Agregar</button></div>
+  <div class="row" style="margin-top:8px"><input id="en_fn" placeholder="Otro producto (no está en inventario)" style="flex:2;min-width:160px"><input id="en_fq" type="number" min="1" value="1" style="width:76px" aria-label="Cantidad"><input id="en_fp" type="number" min="0" step="0.01" placeholder="Precio C$" style="flex:1;min-width:90px"><button type="button" class="btn" data-act="encaddf">Agregar</button></div>
+  <div id="entot" class="tot big" style="margin-top:14px"><span>Total</span><span>${money(tot)}</span></div>
+  <p class="note">El inventario no se descuenta ahora: se descuenta cuando la cuenta se cancela y entregas el producto.</p>
+  <div class="row" style="justify-content:flex-end;margin-top:12px"><button type="button" class="btn" data-act="${D.id?"opene":"close"}" data-id="${D.id}">Cancelar</button><button type="button" class="btn p" data-act="encsave">Guardar encargo</button></div>`);
+}
+async function encSave(){
+  syncEnc();const D=ui.edraft;if(!D)return;
+  const name=D.name.trim();if(!name){toast("Escribe el nombre del cliente");return}
+  const items=D.items.filter(l=>l.qty>0).map(l=>({...l,qty:Math.round(l.qty)}));if(!items.length){toast("Agrega al menos un producto");return}
+  const old=D.id?S.encargos[D.id]:null,tot=r2(items.reduce((t,l)=>t+l.qty*l.price,0));
+  if(old&&tot<encPaid(old)){toast("El total no puede ser menor a lo ya abonado ("+money(encPaid(old))+")");return}
+  const cid=await ensureClient(name,D.phone),id=D.id||uid();
+  const base=old||{num:nextNum(encPrefix(),"encargos"),ts:new Date().toISOString(),abonos:[],status:"pendiente",device:myDevice(),by:byMe()};
+  await put("encargos",id,{...base,customer:{name,phone:D.phone.trim()},cid,note:D.note.trim(),items});
+  ui.edraft=null;toast(old?"Encargo actualizado":"Encargo registrado");encOpen(id);
+}
+/* ---- detalle y abonos ---- */
+function encOpen(id){
+  const e=S.encargos[id];if(!e)return;const tot=encTotal(e),paid=encPaid(e),bal=encBal(e),open=e.status==="pendiente";
+  openModal(`<div class="row" style="justify-content:space-between"><h2>Encargo ${esc(e.num)} ${encPill(e)}</h2><span class="note">${fdate(e.ts)}</span></div>
+  <p style="margin:6px 0 0"><b>${esc(e.customer.name)}</b> <span class="note">${esc(e.customer.phone||"")}</span></p>${e.note?`<p class="note" style="margin:2px 0 0">${esc(e.note)}</p>`:""}
+  <div class="tw" style="margin-top:12px"><table><tbody>${e.items.map(l=>`<tr><td>${esc(l.name)}${l.pid?"":` <span class="note">por pedir</span>`}</td><td class="n">${l.qty} × ${money(l.price)}</td><td class="n">${money(l.qty*l.price)}</td></tr>`).join("")}</tbody></table></div>
+  <div style="margin-top:10px"><div class="tot"><span>Total</span><span>${money(tot)}</span></div><div class="tot"><span>Abonado</span><span>${money(paid)}</span></div><div class="tot big"><span>${open?"Saldo pendiente":"Saldo"}</span><span>${money(open?bal:0)}</span></div></div>
+  <h3 style="margin:14px 0 6px;font-size:14px">Abonos (${(e.abonos||[]).length})</h3>
+  <div class="tw"><table><tbody>${(e.abonos||[]).map((a,i)=>`<tr><td>${fdate(a.ts)}<div class="note">${esc(a.method)} · ${esc(a.by||"")}</div></td><td class="n"><b>${money(a.amount)}</b></td><td class="n"><button class="btn s" data-act="encrec" data-id="${id}" data-i="${i}">Recibo</button></td></tr>`).join("")||`<tr><td class="empty">Todavía no hay abonos.</td></tr>`}</tbody></table></div>
+  ${open?`<div class="card" style="background:var(--surface2);border:0;margin-top:12px"><h2>Registrar abono</h2><div class="row" style="margin-top:8px"><input id="ea_m" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Monto C$" style="flex:1;min-width:110px"><select id="ea_f" style="flex:1;min-width:120px">${["Efectivo","Transferencia","Tarjeta"].map(m=>`<option>${m}</option>`).join("")}</select><button type="button" class="btn p" data-act="enca" data-id="${id}">Abonar</button></div>
+  <div class="row" style="margin-top:8px"><button type="button" class="btn" data-act="encfull" data-id="${id}">Poner saldo completo (${money(bal)})</button></div><p class="note" style="margin:8px 0 0">Cuando el saldo llega a C$ 0.00 la cuenta queda <b>Cancelada</b>, se descuenta el inventario y se genera la factura.</p></div>`:""}
+  <div class="row" style="justify-content:space-between;margin-top:14px"><div class="row">${e.saleId?`<button class="btn" data-act="seeinv" data-id="${e.saleId}">Ver factura</button>`:""}${open&&isAdmin()?`<button class="btn" data-act="encedit" data-id="${id}">Editar</button><button class="btn d" data-act="encanular" data-id="${id}">Anular</button>`:""}</div><button class="btn p" data-act="close">Cerrar</button></div>`);
+}
+async function addAb(id,ab){
+  const e=S.encargos[id];S.encargos[id]={...e,abonos:[...(e.abonos||[]),ab]};
+  if(FS){DB.collection("encargos").doc(id).update({abonos:firebase.firestore.FieldValue.arrayUnion(ab)}).catch(x=>toast("No se pudo sincronizar: "+(x.code||"error")));saveLocalSoon()}
+  else await put("encargos",id,S.encargos[id]);
+}
+async function encAbono(id){
+  const e=S.encargos[id];if(!e||e.status!=="pendiente")return;
+  const amt=r2($("#ea_m").value),bal=encBal(e);
+  if(!(amt>0)){toast("Escribe el monto del abono");return}
+  if(amt>bal){toast("El abono no puede ser mayor al saldo ("+money(bal)+")");return}
+  if(amt===bal){const bad=e.items.find(l=>l.pid&&S.products[l.pid]&&S.products[l.pid].stock<l.qty);if(bad){toast("No hay existencia suficiente de "+bad.name+" para entregar (quedan "+S.products[bad.pid].stock+")");return}}
+  const ab={id:uid(),ts:new Date().toISOString(),amount:amt,method:$("#ea_f").value,by:myName()};
+  await addAb(id,ab);const idx=S.encargos[id].abonos.length-1;
+  if(encBal(S.encargos[id])===0){await encFinish(id);return}
+  toast("Abono de "+money(amt)+" registrado · saldo "+money(encBal(S.encargos[id])));encRecibo(id,idx);
+}
+async function encFinish(id){
+  const e=S.encargos[id],sid=uid(),num=nextNum(mySerie(),"sales"),sub=encTotal(e);
+  const items=e.items.map(l=>{const o={name:l.name,qty:l.qty,price:l.price,cost:l.cost||0};if(l.pid&&S.products[l.pid])o.pid=l.pid;return o});
+  await put("sales",sid,{num,ts:new Date().toISOString(),customer:{...e.customer},method:"Encargo (abonos)",items,subtotal:sub,discount:0,taxRate:0,tax:0,total:sub,status:"emitida",device:myDevice(),by:byMe(),cid:e.cid||"",encNum:e.num});
+  for(const l of items){if(l.pid)await adjustStock(l.pid,-l.qty,"venta","Encargo "+e.num+" · Factura "+num)}
+  await put("encargos",id,{...S.encargos[id],status:"cancelado",saleId:sid,doneAt:new Date().toISOString()});
+  toast("Cuenta cancelada · factura "+num);showInvoice(sid);
+}
+async function encAnular(id){
+  const e=S.encargos[id];if(!e||e.status!=="pendiente")return;
+  await put("encargos",id,{...e,status:"anulado",voidAt:new Date().toISOString(),voidBy:myName()});closeModal();render(true);toast("Encargo anulado");
+}
+/* ---- recibo de abono ---- */
+function abInfo(e,i){const ab=e.abonos[i],prev=r2(e.abonos.slice(0,i).reduce((t,a)=>t+a.amount,0)),tot=encTotal(e);return{ab,prev,tot,saldo:r2(Math.max(0,tot-prev-ab.amount))}}
+function abonoBody(e,i){
+  const c=cfg(),x=abInfo(e,i),m=n=>money(n).replace("C$ ",""),L=(a,b)=>`<div class="r"><span>${a}</span><span>${b}</span></div>`;
+  return `<div class="t">${c.logo?`<div class="c"><img src="${c.logo}" alt="" style="max-width:55%;max-height:22mm;filter:grayscale(1) contrast(1.4)"></div>`:""}<div class="c b big">${esc(c.name)}</div>${c.address?`<div class="c">${esc(c.address)}</div>`:""}${c.phone?`<div class="c">Tel. ${esc(c.phone)}</div>`:""}<hr>
+  <div class="b">RECIBO DE ABONO</div><div>Encargo ${esc(e.num)}</div><div>${fdate(x.ab.ts)}</div><div>Cliente: ${esc(e.customer.name)}</div><hr>
+  ${e.items.map(l=>`<div>${l.qty} x ${esc(l.name)}</div>`).join("")}<hr>
+  ${L("Total","C$"+m(x.tot))}${x.prev?L("Abonado antes","C$"+m(x.prev)):""}<div class="r b"><span>Este abono</span><span>C$${m(x.ab.amount)}</span></div><div class="r b big"><span>SALDO</span><span>C$${m(x.saldo)}</span></div>
+  <div>Pago: ${esc(x.ab.method)}</div>${x.saldo===0?`<div class="c b" style="margin-top:6px">** CUENTA CANCELADA **</div>`:""}<hr><div class="c b">¡Gracias!</div></div>`;
+}
+function abonoText(e,i){const c=cfg(),x=abInfo(e,i),m=n=>money(n);return `*${c.name}*\nRecibo de abono · Encargo ${e.num}\n${fdate(x.ab.ts)}\nCliente: ${e.customer.name}\n\n${e.items.map(l=>l.qty+" x "+l.name).join("\n")}\n\nTotal: ${m(x.tot)}\n${x.prev?"Abonado antes: "+m(x.prev)+"\n":""}*Este abono: ${m(x.ab.amount)}*\n*Saldo: ${m(x.saldo)}*${x.saldo===0?"\n✅ Cuenta cancelada":""}\n\nGracias por su preferencia.`}
+function docAbono(e,i,withUI){
+  const w=cfg().paper==="58"?"58":"80";
+  return `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Recibo ${esc(e.num)}</title><style>${TKCSS(w)}</style><body>${withUI?`<div class="np"><button onclick="print()" style="padding:10px 18px;font-size:15px">Imprimir recibo</button></div>`:""}${abonoBody(e,i)}${withUI?`<script>addEventListener("load",()=>setTimeout(()=>{try{print()}catch(e){}},500))<\/script>`:""}</body></html>`;
+}
+function encRecibo(id,i){
+  const e=S.encargos[id];if(!e||!e.abonos[i])return;const w=cfg().paper==="58"?"48mm":"72mm";
+  openModal(`<h2>Recibo de abono · ${esc(e.num)}</h2><div style="background:var(--surface2);border-radius:12px;padding:16px;max-height:58vh;overflow:auto;margin-top:10px"><div class="tkp" style="width:${w}">${abonoBody(e,i)}</div></div>
+  <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-act="opene" data-id="${id}">Volver</button><button class="btn" data-act="encwa" data-id="${id}" data-i="${i}">WhatsApp</button><button class="btn" data-act="encdl" data-id="${id}" data-i="${i}">Descargar</button>${CAN_PRINT?`<button class="btn" data-act="encprt" data-id="${id}" data-i="${i}">Imprimir (diálogo)</button><button class="btn p" data-act="encprd" data-id="${id}" data-i="${i}">Imprimir directo</button>`:`<button class="btn p" data-act="encprt" data-id="${id}" data-i="${i}">Imprimir</button>`}</div>`);
+}
+async function escposAbono(e,i,withLogo){
+  const c=cfg(),n=c.paper==="58"?32:48,x=abInfo(e,i),o=[],raw=(...b)=>o.push(...b),T=t=>o.push(...encText(t)),L=t=>{T(t);raw(10)};
+  raw(0x1B,0x40);if(c.enc!=="ascii")raw(0x1B,0x74,19);raw(0x1B,0x61,1);
+  if(withLogo&&c.logo&&c.prLogo!==false){const r=await rasterLogo(c.logo,c.paper==="58"?256:320);if(r){o.push(...r);raw(10)}}
+  raw(0x1B,0x45,1,0x1D,0x21,0x11);wrapTxt(c.name,Math.floor(n/2)).forEach(L);raw(0x1D,0x21,0,0x1B,0x45,0);
+  [c.address,c.phone?"Tel. "+c.phone:""].filter(Boolean).forEach(t=>wrapTxt(t,n).forEach(L));
+  raw(0x1B,0x61,0);L("-".repeat(n));raw(0x1B,0x45,1);L("RECIBO DE ABONO");raw(0x1B,0x45,0);L("Encargo "+e.num);L(fdate(x.ab.ts));wrapTxt("Cliente: "+e.customer.name,n).forEach(L);L("-".repeat(n));
+  e.items.forEach(l=>wrapTxt(l.qty+" x "+l.name,n).forEach(L));L("-".repeat(n));
+  L(padLR("Total",mny(x.tot),n));if(x.prev)L(padLR("Abonado antes",mny(x.prev),n));
+  raw(0x1B,0x45,1);L(padLR("Este abono",mny(x.ab.amount),n));raw(0x1D,0x21,0x10);L(padLR("SALDO",mny(x.saldo),Math.floor(n/2)));raw(0x1D,0x21,0,0x1B,0x45,0);
+  L("Pago: "+x.ab.method);if(x.saldo===0){raw(0x1B,0x61,1);raw(0x1B,0x45,1);L("** CUENTA CANCELADA **");raw(0x1B,0x45,0);raw(0x1B,0x61,0)}
+  L("-".repeat(n));raw(0x1B,0x61,1);raw(0x1B,0x45,1);L("Gracias!");raw(0x1B,0x45,0);raw(0x1B,0x64,4);if(c.paper!=="58")raw(0x1D,0x56,66,0);
+  return new Uint8Array(o);
+}
+</script>
+<script>
 function totBox(){const t=cartTotals(),c=cfg();return `<div class="tot"><span>Subtotal</span><span>${money(t.sub)}</span></div>${t.disc?`<div class="tot"><span>Descuento</span><span>− ${money(t.disc)}</span></div>`:""}${+c.tax?`<div class="tot"><span>IVA ${c.tax}%</span><span>${money(t.tax)}</span></div>`:""}<div class="tot big"><span>Total</span><span>${money(t.total)}</span></div>`}
 function vPanel(){
   const ok=list("sales").filter(s=>s.status!=="anulada"),now=new Date(),d0=today(),m0=d0.slice(0,7);
@@ -673,10 +801,12 @@ function vPanel(){
   <div class="grid kpis"><div class="kpi"><span>Ventas de hoy</span><b>${money(day.reduce((s,x)=>s+x.total,0))}</b><em>${day.length} factura${day.length===1?"":"s"}${cmpTxt(dayTot,yTot," vs ayer")}</em></div>
   <div class="kpi"><span>Ventas del mes</span><b>${money(mon.reduce((s,x)=>s+x.total,0))}</b><em>${mon.length} factura${mon.length===1?"":"s"}${cmpTxt(monTot,pmTot," vs mes pasado")}</em></div>
   <div class="kpi"><span>Ganancia del mes</span><b>${money(profit)}</b><em>Margen ${monTot?Math.round(profit/monTot*100):0}% sobre ventas</em></div>
-  <div class="kpi"><span>Equipos en taller</span><b>${act}</b><em>${ready} listos para entregar</em></div></div>
+  <div class="kpi"><span>Equipos en taller</span><b>${act}</b><em>${ready} listos para entregar</em></div>
+  <div class="kpi"><span>Por cobrar (encargos)</span><b>${money(encStats().owed)}</b><em>${encStats().open} pendiente${encStats().open===1?"":"s"} · abonos hoy ${money(encStats().abHoy)}</em></div></div>
   `:`
   <div class="grid kpis"><div class="kpi"><span>Mis ventas de hoy</span><b>${money(day.filter(s=>(s.by&&s.by.uid)===ME.uid).reduce((t,x)=>t+x.total,0))}</b><em>${day.filter(s=>(s.by&&s.by.uid)===ME.uid).length} facturas</em></div>
-  <div class="kpi"><span>Equipos en taller</span><b>${act}</b><em>${ready} listos para entregar</em></div></div>
+  <div class="kpi"><span>Equipos en taller</span><b>${act}</b><em>${ready} listos para entregar</em></div>
+  <div class="kpi"><span>Por cobrar (encargos)</span><b>${money(encStats().owed)}</b><em>${encStats().open} pendiente${encStats().open===1?"":"s"}</em></div></div>
   `}
   <div class="grid two"><div class="card"><h2>Últimas ventas</h2><div class="tw"><table><tbody>${rec.map(s=>`<tr><td class="mono">${esc(s.num)}</td><td>${esc(s.customer.name)}<div class="note">${fdate(s.ts)}</div></td><td class="n"><b>${money(s.total)}</b></td></tr>`).join("")||`<tr><td class="empty">Todavía no hay ventas.</td></tr>`}</tbody></table></div></div>
   <div class="grid"><div class="card"><h2>Por reponer</h2>${low.map(p=>`<div class="tot"><span>${esc(p.name)}</span><span class="pill ${p.stock<=0?"bad":"warn"}">${p.stock} en existencia</span></div>`).join("")||`<div class="note">Todo el inventario está sobre el mínimo.</div>`}</div>
@@ -703,6 +833,7 @@ function alerts(){
     else if(r.status!=="Entregado"&&now-new Date(r.ts)>5*864e5)out.push({key:"a:"+r.id,lvl:"warn",title:"Más de 5 días en taller: "+r.device,text:r.customer.name+" · orden "+r.num+" · "+r.status,rep:r.id});
     if(r.status==="Entregado"&&!r.saleId)out.push({key:"f:"+r.id,lvl:"warn",title:"Entregado sin facturar: "+r.device,text:"Orden "+r.num+" de "+r.customer.name,rep:r.id});
   });
+  list("encargos").forEach(e=>{if(e.status==="pendiente"&&now-new Date(e.ts)>7*864e5)out.push({key:"e:"+e.id+":"+Math.floor((now-new Date(e.ts))/(7*864e5)),lvl:"warn",title:"Encargo con saldo: "+e.customer.name,text:e.num+" · debe "+money(encBal(e))+" desde hace "+Math.floor((now-new Date(e.ts))/864e5)+" días",go:"enc"})});
   if(isAdmin())list("sales").forEach(s=>{if(s.device&&s.device!==myDevice()&&s.status!=="anulada"&&now-new Date(s.ts)<864e5)out.push({key:"v:"+s.id,lvl:"good",title:"Nueva venta "+s.num+" · "+money(s.total),text:"Registrada en "+s.device+" · "+s.customer.name,go:"fac"})});
   try{if(isAdmin()&&mode!=="db"&&(list("sales").length||list("products").length)){const lb=+(localStorage.getItem("tp_backup")||0);if(now-lb>7*864e5)out.push({key:"b:"+Math.floor(now/(7*864e5)),lvl:"warn",title:"Haz un respaldo de tus datos",text:lb?"El último respaldo tiene más de 7 días.":"Aún no has descargado ningún respaldo.",go:"aj"})}}catch(e){}
   return out.filter(a=>!dis.has(a.key));
@@ -719,7 +850,7 @@ function alertsModal(){
   openModal(`<h2>Notificaciones</h2><p class="note">Avisos de tu taller: inventario, equipos listos y pendientes.</p><div style="margin-top:10px">${al.map(a=>`<div class="al"><span class="dot ${a.lvl==="warn"?"":a.lvl}"></span><div><b>${esc(a.title)}</b><div class="note">${esc(a.text)}</div></div><div class="row" style="flex-wrap:nowrap"><button class="btn s" data-act="algo" data-id="${esc(a.key)}">Ver</button><button class="btn s" data-act="aldis" data-id="${esc(a.key)}" aria-label="Descartar">✕</button></div></div>`).join("")||`<div class="empty">No hay avisos pendientes.</div>`}</div>
   <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-act="alall" ${al.length?"":"disabled"}>Descartar todas</button><button class="btn p" data-act="close">Cerrar</button></div>`);
 }
-const VIEWS={panel:vPanel,venta:vVenta,rep:vRep,cli:vCli,inv:vInv,fac:vFac,reportes:vRepo,equipo:vTeam,aj:vAj};
+const VIEWS={panel:vPanel,venta:vVenta,rep:vRep,enc:vEnc,cli:vCli,inv:vInv,fac:vFac,reportes:vRepo,equipo:vTeam,aj:vAj};
 function render(force){
   if(ADMIN_VIEWS.has(view)&&!isAdmin())view="panel";
   const a=document.activeElement;
@@ -957,7 +1088,7 @@ document.addEventListener("click",async e=>{
   const g=e.target.closest("[data-go]");if(g){go(g.dataset.go);return}
   const b=e.target.closest("[data-act]");if(!b)return;
   const a=b.dataset.act,id=b.dataset.id;
-  if(["newp","editp","delp","stock","csvinv","csvsales","void","backup","dorestore","cloudup","clouddis","rmlogo","csvrep","empnew","emptoggle","emprole","emppw","delc","editinv","einvsave","eiadd","eisv","eirm"].includes(a)&&!isAdmin()){toast("Solo el administrador puede hacer esto");return}
+  if(["newp","editp","delp","stock","csvinv","csvsales","void","backup","dorestore","cloudup","clouddis","rmlogo","csvrep","empnew","emptoggle","emprole","emppw","delc","editinv","einvsave","eiadd","eisv","eirm","encedit","encanular"].includes(a)&&!isAdmin()){toast("Solo el administrador puede hacer esto");return}
   switch(a){
     case"close":closeModal();break;
     case"newp":prodForm();break;
@@ -1012,6 +1143,22 @@ document.addEventListener("click",async e=>{
     case"dlk":dlDoc(ui.fmt,id);break;
     case"install":if(window.deferredInstall){window.deferredInstall.prompt();await window.deferredInstall.userChoice;window.deferredInstall=null;$("#installBtn").hidden=true}else toast("Usa el menú del navegador: Instalar app o Añadir a pantalla de inicio");break;
     case"void":if(b.dataset.sure)voidSale(id);else{b.dataset.sure=1;b.textContent="Confirmar anulación"}break;
+    case"newe":newEnc();break;
+    case"opene":encOpen(id);break;
+    case"ef":ui.ef=id;render(true);break;
+    case"encedit":editEnc(id);break;
+    case"encrm":syncEnc();ui.edraft.items.splice(+id,1);encDraw();break;
+    case"encaddp":{syncEnc();const pid=$("#en_add").value,p=S.products[pid],q=Math.max(1,parseInt($("#en_aq").value)||1);if(!p){toast("Elige un producto");break}const l=ui.edraft.items.find(x=>x.pid===pid);if(l)l.qty+=q;else ui.edraft.items.push({pid,name:p.name,qty:q,price:p.price,cost:p.cost});encDraw();break}
+    case"encaddf":{syncEnc();const n=$("#en_fn").value.trim(),pr=$("#en_fp").value,q=Math.max(1,parseInt($("#en_fq").value)||1);if(!n||pr===""){toast("Escribe el producto y su precio");break}ui.edraft.items.push({name:n,qty:q,price:+pr,cost:0});encDraw();break}
+    case"encsave":encSave();break;
+    case"enca":encAbono(id);break;
+    case"encfull":{const e=S.encargos[id];if(e&&$("#ea_m"))$("#ea_m").value=encBal(e);break}
+    case"encanular":if(b.dataset.sure)encAnular(id);else{b.dataset.sure=1;b.textContent="Confirmar anulación"}break;
+    case"encrec":encRecibo(id,+b.dataset.i);break;
+    case"encwa":try{await navigator.clipboard.writeText(abonoText(S.encargos[id],+b.dataset.i));toast("Recibo copiado")}catch(x){toast("No se pudo copiar")}break;
+    case"encdl":download("Recibo-"+S.encargos[id].num+"-"+(+b.dataset.i+1)+".html",docAbono(S.encargos[id],+b.dataset.i,true),"Abre el archivo descargado para imprimir");break;
+    case"encprt":if(CAN_PRINT)printHTML(docAbono(S.encargos[id],+b.dataset.i,false));else download("Recibo-"+S.encargos[id].num+".html",docAbono(S.encargos[id],+b.dataset.i,true),"Abre el archivo descargado para imprimir");break;
+    case"encprd":{const e=S.encargos[id],i=+b.dataset.i;printBytes(w=>escposAbono(e,i,w));break}
     case"newr":repForm();break;
     case"editr":repForm(id);break;
     case"addpart":addPart(id);break;
@@ -1031,7 +1178,8 @@ document.addEventListener("input",e=>{
   if(e.target.dataset&&e.target.dataset.ei){const E=ui.edit;if(!E)return;const k=e.target.dataset.ei;
     if(k==="qty"||k==="price"){const i=+e.target.dataset.i,l=E.items[i];l[k]=Math.max(0,+e.target.value||0);const c=$("#eil_"+i);if(c)c.textContent=money(l.qty*l.price)}else E[k]=e.target.value;
     $("#eitot").innerHTML=einvTotHTML();return}
-  const id=e.target.id,m={iq:"iq",pq:"pq",fq:"fq",rq:"rq",cq:"cq"};
+  if(e.target.dataset&&e.target.dataset.en&&ui.edraft){const k=e.target.dataset.en,i=+e.target.dataset.i,l=ui.edraft.items[i];if(l){l[k]=Math.max(0,+e.target.value||0);const c=$("#enl_"+i);if(c)c.textContent=money(l.qty*l.price);$("#entot span:last-child").textContent=money(ui.edraft.items.reduce((t,x)=>t+x.qty*x.price,0))}return}
+  const id=e.target.id,m={iq:"iq",pq:"pq",fq:"fq",rq:"rq",cq:"cq",eq:"eq"};
   if(m[id]){ui[m[id]]=e.target.value;const pos=e.target.selectionStart;render(true);const el=$("#"+id);if(el){el.focus();try{el.setSelectionRange(pos,pos)}catch(x){}}}
   else if(id==="cd"){syncCust();$("#totbox").innerHTML=totBox()}
   else if(id==="cn"){const c=findClient(e.target.value,"");if(c&&c.phone&&$("#cp")&&!$("#cp").value)$("#cp").value=c.phone;syncCust()}
@@ -1058,7 +1206,7 @@ ui.day=today();setInterval(()=>{const t=today();if(ui.day!==t){ui.day=t;if(view=
 </script>
 
 <script>
-const APP_VERSION="5.2 · 20 nov 2026";
+const APP_VERSION="5.4 · 22 nov 2026";
 if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){
   let had=!!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener("controllerchange",()=>{

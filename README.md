@@ -67,6 +67,7 @@ service cloud.firestore {
       }
       match /sales/{id} { allow read, create: if staff(); allow update, delete: if admin(); }
       match /repairs/{id} { allow read, create, update: if staff(); allow delete: if admin(); }
+      match /encargos/{id} { allow read, create, update: if staff(); allow delete: if admin(); }
       match /clientes/{id} { allow read, create, update: if staff(); allow delete: if admin(); }
       match /moves/{id} { allow read, create: if staff(); allow update, delete: if admin(); }
     }
