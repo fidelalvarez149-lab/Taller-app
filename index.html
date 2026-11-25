@@ -782,6 +782,23 @@ async function escposAbono(e,i,withLogo){
 }
 </script>
 <script>
+/* Respaldo automático: copia en la carpeta Descargas del teléfono (sobrevive a "Borrar datos de Chrome") */
+const hasData=()=>list("products").length+list("sales").length+list("repairs").length+list("clientes").length+list("encargos").length>0;
+function backupObj(){const c={};try{["tp_cloud","tp_device","tp_serie"].forEach(k=>{const v=localStorage.getItem(k);if(v)c[k]=v})}catch(e){}return{...S,_app:"diazcell",_ts:new Date().toISOString(),_cfg:c}}
+const bkOn=()=>{try{return localStorage.getItem("tp_autobk")!=="off"}catch(e){return true}};
+function autoBackup(){
+  if(!CAN_PRINT||!bkOn()||!isAdmin()||!hasData())return;
+  let last=0;try{last=+localStorage.getItem("tp_lastbk")||0}catch(e){}
+  if(Date.now()-last<20*36e5)return;
+  try{localStorage.setItem("tp_lastbk",Date.now());localStorage.setItem("tp_backup",Date.now())}catch(e){}
+  download("DiazCell-respaldo-"+today()+".json",JSON.stringify(backupObj()),"Respaldo guardado en Descargas");
+}
+function restoreBanner(){
+  if(!CAN_PRINT||mode!=="local"||hasData()||S.settings.name)return"";
+  return `<div class="card" style="margin-bottom:14px;border-color:var(--warn)"><h2>¿Se borraron tus datos?</h2><p class="note" style="margin:0 0 10px">Si tienes un respaldo (archivo <b>DiazCell-respaldo-…json</b> en Descargas), restáuralo aquí: vuelven tu logo, inventario, ventas y ganancias.</p><label for="rst" class="btn p" style="display:inline-block;cursor:pointer">Restaurar mi respaldo</label><input id="rst" type="file" accept=".json,application/json" style="display:none"></div>`;
+}
+</script>
+<script>
 function totBox(){const t=cartTotals(),c=cfg();return `<div class="tot"><span>Subtotal</span><span>${money(t.sub)}</span></div>${t.disc?`<div class="tot"><span>Descuento</span><span>− ${money(t.disc)}</span></div>`:""}${+c.tax?`<div class="tot"><span>IVA ${c.tax}%</span><span>${money(t.tax)}</span></div>`:""}<div class="tot big"><span>Total</span><span>${money(t.total)}</span></div>`}
 function vPanel(){
   const ok=list("sales").filter(s=>s.status!=="anulada"),now=new Date(),d0=today(),m0=d0.slice(0,7);
@@ -797,7 +814,7 @@ function vPanel(){
   const act=list("repairs").filter(r=>r.status!=="Entregado").length,ready=list("repairs").filter(r=>r.status==="Listo").length;
   const rec=ok.sort((a,b)=>b.ts.localeCompare(a.ts)).slice(0,6);
   return `<div class="top"><div><h1>Panel</h1><p>${now.toLocaleDateString("es-NI",{weekday:"long",day:"numeric",month:"long"})} · Actualizado ${now.toLocaleTimeString("es-NI",{hour:"2-digit",minute:"2-digit"})}</p></div><div class="row"><button class="btn" data-act="newr">+ Recibir equipo</button><button class="btn p" data-go="venta">Nueva venta</button></div></div>
-  ${isAdmin()?`
+  ${restoreBanner()}${isAdmin()?`
   <div class="grid kpis"><div class="kpi"><span>Ventas de hoy</span><b>${money(day.reduce((s,x)=>s+x.total,0))}</b><em>${day.length} factura${day.length===1?"":"s"}${cmpTxt(dayTot,yTot," vs ayer")}</em></div>
   <div class="kpi"><span>Ventas del mes</span><b>${money(mon.reduce((s,x)=>s+x.total,0))}</b><em>${mon.length} factura${mon.length===1?"":"s"}${cmpTxt(monTot,pmTot," vs mes pasado")}</em></div>
   <div class="kpi"><span>Ganancia del mes</span><b>${money(profit)}</b><em>Margen ${monTot?Math.round(profit/monTot*100):0}% sobre ventas</em></div>
@@ -821,7 +838,7 @@ function vAj(){
   <div><label for="apw">Ancho del papel del ticket</label><select id="apw"><option value="80" ${c.paper==="80"?"selected":""}>80 mm (estándar)</option><option value="58" ${c.paper==="58"?"selected":""}>58 mm (pequeña)</option></select></div></div>
   <div class="f"><div><label for="at">IVA (%). Pon 0 si no lo cobras</label><input id="at" type="number" min="0" step="0.01" value="${c.tax}"></div><div><label for="al">Aviso de stock bajo por defecto</label><input id="al" type="number" min="0" value="${c.lowDefault}"></div></div>
   <div><label for="af2">Mensaje al pie de la factura</label><textarea id="af2" rows="2">${esc(c.footer)}</textarea></div>
-  <div class="row" style="justify-content:space-between"><button type="button" class="btn" data-act="backup">Descargar respaldo (JSON)</button><button class="btn p">Guardar ajustes</button></div></form></div>`:""}${CAN_PRINT?cloudCard():""}${CAN_PRINT?printerCard():""}${mode!=="db"&&isAdmin()?`<div class="card" style="margin-top:14px"><h2>Respaldo y otro dispositivo</h2><p class="note" style="margin:0 0 10px">Tus datos viven en este dispositivo y funcionan sin internet. Descarga un respaldo seguido, y restáuralo aquí si cambias de teléfono o computadora.</p>${mode==="local"?`<label for="rst">Restaurar desde un respaldo (.json)</label><input id="rst" type="file" accept=".json,application/json">`:""}${CAN_PRINT?`<div class="row" style="margin-top:14px;justify-content:space-between"><span class="note">Versión ${typeof APP_VERSION!=="undefined"?APP_VERSION:""}. Se actualiza sola al abrir con internet.</span><button type="button" class="btn s" data-act="upd">Buscar actualización</button></div>`:""}</div>`:""}${CAN_PRINT&&!matchMedia("(display-mode: standalone)").matches?`<div class="card" style="margin-top:14px"><h2>Instalar la app</h2><div class="f"><div><b>Android</b><div class="note">Chrome → menú ⋮ → Instalar app.</div></div><div><b>iPhone</b><div class="note">Abre en Safari → Compartir → Añadir a pantalla de inicio.</div></div><div><b>PC</b><div class="note">Chrome o Edge → icono de instalar en la barra de direcciones.</div></div></div><div class="row" style="margin-top:12px"><button class="btn p" data-act="install">Instalar ahora</button></div></div>`:""}`;
+  <div class="row" style="justify-content:space-between"><button type="button" class="btn" data-act="backup">Descargar respaldo (JSON)</button><button class="btn p">Guardar ajustes</button></div></form></div>`:""}${CAN_PRINT?cloudCard():""}${CAN_PRINT?printerCard():""}${mode!=="db"&&isAdmin()?`<div class="card" style="margin-top:14px"><h2>Respaldo y otro dispositivo</h2><p class="note" style="margin:0 0 10px">Tus datos viven en este dispositivo y funcionan sin internet. Descarga un respaldo seguido, y restáuralo aquí si cambias de teléfono o computadora.</p>${CAN_PRINT?`<label style="display:flex;gap:10px;align-items:flex-start;margin:0 0 12px"><input type="checkbox" id="bk_a" ${bkOn()?"checked":""} style="width:auto;margin-top:3px"><span><b>Respaldo automático diario</b><br><span class="note">Guarda una copia en la carpeta Descargas del teléfono (con logo, ajustes, inventario y ventas). Si borras los datos de Chrome, la restauras desde aquí.</span></span></label>`:""}${mode==="local"?`<label for="rst">Restaurar desde un respaldo (.json)</label><input id="rst" type="file" accept=".json,application/json">`:""}${CAN_PRINT?`<div class="row" style="margin-top:14px;justify-content:space-between"><span class="note">Versión ${typeof APP_VERSION!=="undefined"?APP_VERSION:""}. Se actualiza sola al abrir con internet.</span><button type="button" class="btn s" data-act="upd">Buscar actualización</button></div>`:""}</div>`:""}${CAN_PRINT&&!matchMedia("(display-mode: standalone)").matches?`<div class="card" style="margin-top:14px"><h2>Instalar la app</h2><div class="f"><div><b>Android</b><div class="note">Chrome → menú ⋮ → Instalar app.</div></div><div><b>iPhone</b><div class="note">Abre en Safari → Compartir → Añadir a pantalla de inicio.</div></div><div><b>PC</b><div class="note">Chrome o Edge → icono de instalar en la barra de direcciones.</div></div></div><div class="row" style="margin-top:12px"><button class="btn p" data-act="install">Instalar ahora</button></div></div>`:""}`;
 }
 function dismissed(){try{return new Set(JSON.parse(localStorage.getItem("tp_dis")||"[]"))}catch(e){return new Set()}}
 function saveDis(s){try{localStorage.setItem("tp_dis",JSON.stringify([...s].slice(-300)))}catch(e){}}
@@ -1107,7 +1124,7 @@ document.addEventListener("click",async e=>{
     case"checkout":checkout();break;
     case"seeinv":showInvoice(id);break;
     case"copyinv":try{await navigator.clipboard.writeText(invText(S.sales[id]));toast("Factura copiada")}catch(x){toast("No se pudo copiar")}break;
-    case"dorestore":if(ui.pending&&mode==="local"){COLS.forEach(c=>S[c]=ui.pending[c]||{});S.settings=ui.pending.settings||{};saveLocal();ui.pending=null;closeModal();render(true);toast("Respaldo restaurado")}break;
+    case"dorestore":if(ui.pending&&mode==="local"){COLS.forEach(c=>S[c]=ui.pending[c]||{});S.settings=ui.pending.settings||{};saveLocal();const cf=ui.pending._cfg;ui.pending=null;closeModal();render(true);toast("Respaldo restaurado");if(cf){try{Object.entries(cf).forEach(([k,v])=>localStorage.setItem(k,v))}catch(x){}if(cf.tp_cloud)setTimeout(()=>location.reload(),900)}}break;
     case"upd":{const r=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();if(!r){toast("Las actualizaciones solo funcionan en la app instalada");break}toast("Buscando actualización…");try{await r.update()}catch(x){toast("Sin conexión para actualizar");break}setTimeout(()=>{if(!r.installing&&!r.waiting)toast("Ya tienes la última versión")},2500);break}
     case"prble":try{await prConnectBle();toast("Impresora conectada");prUI()}catch(x){if(!(x&&x.name==="NotFoundError"))toast(x.message||"No se pudo conectar")}break;
     case"prser":try{await prConnectSerial();toast("Puerto conectado")}catch(x){if(!(x&&x.name==="NotFoundError"))toast(x.message||"No se pudo conectar")}break;
@@ -1171,7 +1188,7 @@ document.addEventListener("click",async e=>{
     case"alall":{const d=dismissed();alerts().forEach(a=>d.add(a.key));saveDis(d);alertsModal();updateBell();break}
     case"algo":{const a=alerts().find(x=>x.key===id);closeModal();if(a&&a.rep){go("rep");repForm(a.rep)}else go(a&&a.go||"inv");break}
         case"rmlogo":await putSettings({logo:""});render(true);toast("Logo quitado");break;
-    case"backup":try{localStorage.setItem("tp_backup",Date.now())}catch(x){}download("respaldo-taller-"+today()+".json",JSON.stringify(S,null,1));break;
+    case"backup":try{localStorage.setItem("tp_backup",Date.now())}catch(x){}download("DiazCell-respaldo-"+today()+".json",JSON.stringify(backupObj(),null,1));break;
   }
 });
 document.addEventListener("input",e=>{
@@ -1191,6 +1208,7 @@ document.addEventListener("change",async e=>{
   const pm={pr_m:["prmethod",x=>x.value],pr_e:["enc",x=>x.value],pr_b:["baud",x=>+x.value],pr_l:["prLogo",x=>x.checked],pr_a:["autoprint",x=>x.checked]}[e.target.id];
   if(e.target.id==="cl_dev"||e.target.id==="cl_ser"){const v=e.target.id==="cl_ser"?(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,3)||"F"):(e.target.value.trim()||myDevice());try{localStorage.setItem(e.target.id==="cl_ser"?"tp_serie":"tp_device",v)}catch(x){}e.target.value=v;toast("Guardado");return}
   if(pm){await putSettings({[pm[0]]:pm[1](e.target)});toast("Guardado");return}
+  if(e.target.id==="bk_a"){try{localStorage.setItem("tp_autobk",e.target.checked?"on":"off")}catch(x){}toast(e.target.checked?"Respaldo automático activado":"Respaldo automático desactivado");return}
   if(e.target.id==="rst"&&e.target.files[0]){
     try{const d=JSON.parse(await e.target.files[0].text());if(!d||typeof d.products!=="object"||typeof d.sales!=="object")throw 0;ui.pending=d;
       openModal(`<h2>Restaurar respaldo</h2><p>Se reemplazarán los datos de este dispositivo por el respaldo: <b>${Object.keys(d.products).length}</b> productos, <b>${Object.keys(d.sales).length}</b> facturas y <b>${Object.keys(d.repairs||{}).length}</b> reparaciones.</p><p class="note">Los datos actuales se perderán. Descarga un respaldo antes si no estás seguro.</p><div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-act="close">Cancelar</button><button class="btn p" data-act="dorestore">Restaurar</button></div>`)}
@@ -1202,11 +1220,11 @@ document.addEventListener("change",async e=>{
 addEventListener("beforeinstallprompt",e=>{e.preventDefault();window.deferredInstall=e;$("#installBtn").hidden=false});
 addEventListener("appinstalled",()=>{window.deferredInstall=null;$("#installBtn").hidden=true;toast("App instalada")});
 ui.day=today();setInterval(()=>{const t=today();if(ui.day!==t){ui.day=t;if(view==="panel"||view==="reportes")render()}},30000);
-(async()=>{if(cloudCfg())gate("loading");render(true);await initStore();render(true);if(CAN_PRINT)prAuto();setTimeout(()=>{ui.seen=new Set(alerts().map(a=>a.key));ui.armed=true},1800)})();
+(async()=>{if(cloudCfg())gate("loading");render(true);await initStore();render(true);if(CAN_PRINT){prAuto();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(x){}setTimeout(autoBackup,9000);setInterval(autoBackup,36e5)}setTimeout(()=>{ui.seen=new Set(alerts().map(a=>a.key));ui.armed=true},1800)})();
 </script>
 
 <script>
-const APP_VERSION="5.4 · 22 nov 2026";
+const APP_VERSION="5.5 · 25 nov 2026";
 if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){
   let had=!!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener("controllerchange",()=>{
